@@ -1,9 +1,5 @@
-import {
-  fetchAllSchools,
-  fetchAllStudents,
-  fetchAllTeachers,
-} from "@/app/lib/data"
-import { School } from "@/app/lib/definitions"
+import { schools, students, teachers } from "@/data/education"
+import type { School, Student, Teacher } from "@/data/education"
 
 async function StatCard({ title, value }: { title: string; value: number }) {
   return (
@@ -14,22 +10,21 @@ async function StatCard({ title, value }: { title: string; value: number }) {
   )
 }
 
-export default async function AnalyticsPage() {
-  const [schools, teachers, students] = await Promise.all([
-    fetchAllSchools(),
-    fetchAllTeachers(),
-    fetchAllStudents(),
-  ])
+export default function AnalyticsPage() {
+  // Using static data from /data/education.ts
 
   const totalSchools = schools.length
   const totalTeachers = teachers.length
   const totalStudents = students.length
 
-  const schoolStats = schools.map((school: School) => {
+  const schoolStats = schools.map((school) => {
     return {
       ...school,
-      teacherCount: teachers.filter((t) => t.schoolId === school.id).length,
-      studentCount: students.filter((s) => s.schoolId === school.id).length,
+      teacherCount: teachers.filter((t: Teacher) => t.schoolId === school.id)
+        .length,
+      studentCount: students.filter((s: Student) => s.schoolId === school.id)
+        .length,
+      address: `${school.name} Campus`, // Mock address since our data doesn't have it
     }
   })
 
