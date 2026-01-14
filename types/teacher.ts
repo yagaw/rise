@@ -1,0 +1,64 @@
+export interface Teacher {
+  id: string
+  created_at?: string
+  org?: string
+  sch_code?: string
+  sch_name_eng?: string
+  sch_name_bur?: string
+  sch_name_loc?: string
+  pcode_sr_mimu?: string
+  sr_eng_minu?: string
+  pcode_ts_mimu?: string
+  ts_eng_mimu?: string
+  teach_id?: string
+  teach_name_eng?: string
+  teach_name_bur?: string
+  gender?: string
+  yob?: number
+  marital_status?: string
+  religion?: string
+  edu_level?: string
+  training?: string
+  teaching_began?: string
+  teach_exp_year?: number
+  teach_exp_month?: number
+  position?: string
+  status?: string // new, stay, transfer_from, resume, transfer_to, retire, resign
+  transfer_to_from?: string
+  // Subject competencies
+  local_languages?: boolean
+  english?: boolean
+  burmese?: boolean
+  math?: boolean
+  health?: boolean
+  geography?: boolean
+  history?: boolean
+  science?: boolean
+  eco?: boolean
+  che?: boolean
+  phy?: boolean
+  bio?: boolean
+  social?: boolean
+  moral_civic?: boolean
+  life_skills?: boolean
+  art?: boolean
+  physical_education?: boolean
+  other_subject?: boolean
+  // Grade levels taught
+  nursery?: boolean
+  kg?: boolean
+  grade_1?: boolean
+  grade_2?: boolean
+  grade_3?: boolean
+  grade_4?: boolean
+  grade_5?: boolean
+  grade_6?: boolean
+  grade_7?: boolean
+  grade_8?: boolean
+  grade_9?: boolean
+  grade_10?: boolean
+  grade_11?: boolean
+  grade_12?: boolean
+  com_moe_support?: string
+  comments?: string
+}

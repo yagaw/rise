@@ -4,7 +4,13 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useSidebar } from "../context/SidebarContext"
-import { ChevronDownIcon, GridIcon, HorizontaLDots } from "../icons/index"
+import {
+  ChevronDownIcon,
+  GridIcon,
+  HorizontaLDots,
+  BoxCubeIcon,
+  UserCircleIcon,
+} from "../icons/index"
 import SidebarWidget from "./SidebarWidget"
 
 type NavItem = {
@@ -28,6 +34,16 @@ const navItems: NavItem[] = [
       // { name: "SaaS", path: "/saas", new: true },
       // { name: "Logistics", path: "/logistics", new: true },
     ],
+  },
+  {
+    icon: <BoxCubeIcon />,
+    name: "Schools",
+    path: "/schools",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Teachers",
+    path: "/teachers",
   },
   // {
   //   name: "AI Assistant",
