@@ -19,11 +19,17 @@ export default function TopSchoolsByEnrollment() {
       counts[s.schoolId] = (counts[s.schoolId] ?? 0) + 1
     }
     const records = Object.entries(counts)
-      .map(([schoolId, count]) => ({
-        schoolId,
-        name: allSchools.find((sc) => sc.id === schoolId)?.name ?? schoolId,
-        count,
-      }))
+      .map(([schoolId, count]) => {
+        const school = allSchools.find((sc) => sc.id === schoolId)
+        return {
+          schoolId,
+          name: school?.sch_name_eng ?? schoolId,
+          code: school?.sch_code ?? "",
+          region: school?.sr_eng_mimu ?? "",
+          type: school?.sch_type ?? "",
+          count,
+        }
+      })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
     return records
@@ -58,7 +64,16 @@ export default function TopSchoolsByEnrollment() {
           <thead>
             <tr>
               <th className="px-3 py-2 text-gray-500 text-theme-xs dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
-                School
+                School Code
+              </th>
+              <th className="px-3 py-2 text-gray-500 text-theme-xs dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                School Name
+              </th>
+              <th className="px-3 py-2 text-gray-500 text-theme-xs dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                Region
+              </th>
+              <th className="px-3 py-2 text-gray-500 text-theme-xs dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                Type
               </th>
               <th className="px-3 py-2 text-gray-500 text-theme-xs dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
                 Enrollment
@@ -69,7 +84,16 @@ export default function TopSchoolsByEnrollment() {
             {enrollmentBySchool.map((row) => (
               <tr key={row.schoolId}>
                 <td className="px-3 py-2 text-gray-700 dark:text-gray-300 text-theme-sm">
+                  {row.code}
+                </td>
+                <td className="px-3 py-2 text-gray-700 dark:text-gray-300 text-theme-sm">
                   {row.name}
+                </td>
+                <td className="px-3 py-2 text-gray-700 dark:text-gray-300 text-theme-sm">
+                  {row.region}
+                </td>
+                <td className="px-3 py-2 text-gray-700 dark:text-gray-300 text-theme-sm">
+                  {row.type}
                 </td>
                 <td className="px-3 py-2 text-gray-700 dark:text-gray-300 text-theme-sm">
                   {row.count}
@@ -78,7 +102,10 @@ export default function TopSchoolsByEnrollment() {
             ))}
             {!enrollmentBySchool.length && (
               <tr>
-                <td className="px-3 py-2 text-gray-500 dark:text-gray-400 text-theme-sm">
+                <td
+                  colSpan={5}
+                  className="px-3 py-2 text-gray-500 dark:text-gray-400 text-theme-sm text-center"
+                >
                   No data
                 </td>
               </tr>

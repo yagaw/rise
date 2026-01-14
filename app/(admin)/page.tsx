@@ -5,6 +5,9 @@ import TeacherGenderSessionChart from "@/components/analytics/TeacherGenderSessi
 import StudentsByGradeChart from "@/components/analytics/StudentsByGradeChart"
 import TeachersBySubjectChart from "@/components/analytics/TeachersBySubjectChart"
 import TopSchoolsByEnrollment from "@/components/analytics/TopSchoolsByEnrollment"
+import SchoolsByTypeAndRegion from "@/components/analytics/SchoolsByTypeAndRegion"
+import TeacherStatusOverview from "@/components/analytics/TeacherStatusOverview"
+import TeachersByPositionChart from "@/components/analytics/TeachersByPositionChart"
 import { Metadata } from "next"
 import React from "react"
 
@@ -17,10 +20,32 @@ export const metadata: Metadata = {
 export default function Analytics() {
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
+      {/* Key Metrics */}
       <EducationAnalyticsDashboard />
+
+      {/* School Analytics */}
       <div className="col-span-12">
-        <AnalyticsBarChart />
+        <SchoolsByTypeAndRegion />
       </div>
+
+      <div className="col-span-12">
+        <TopSchoolsByEnrollment />
+      </div>
+
+      {/* Teacher Analytics */}
+      <div className="col-span-12">
+        <TeacherStatusOverview />
+      </div>
+
+      <div className="col-span-12 xl:col-span-7">
+        <TeachersByPositionChart />
+      </div>
+
+      <div className="col-span-12 xl:col-span-5">
+        <TeachersBySubjectChart />
+      </div>
+
+      {/* Gender Distribution */}
       <div className="col-span-12 xl:col-span-7">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <StudentGenderSessionChart />
@@ -28,15 +53,14 @@ export default function Analytics() {
         </div>
       </div>
 
+      {/* Student Analytics */}
       <div className="col-span-12 xl:col-span-7">
         <StudentsByGradeChart />
       </div>
-      <div className="col-span-12 xl:col-span-5">
-        <TeachersBySubjectChart />
-      </div>
 
+      {/* Overall Analytics Bar Chart */}
       <div className="col-span-12">
-        <TopSchoolsByEnrollment />
+        <AnalyticsBarChart />
       </div>
     </div>
   )

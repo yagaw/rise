@@ -6,76 +6,85 @@ import { organizations, getOrganizationScopedData } from "@/data/education"
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
-export default function TeachersBySubjectChart() {
+export default function TeachersByPositionChart() {
   const [organizationId, setOrganizationId] = useState<string>("all")
   const scoped = useMemo(
     () => getOrganizationScopedData(organizationId),
     [organizationId]
   )
 
-  const subjectCounts = useMemo(() => {
-    const counts = {
-      Math: 0,
-      Science: 0,
-      English: 0,
-      Burmese: 0,
-      History: 0,
-      Geography: 0,
-      Physics: 0,
-      Chemistry: 0,
-      Biology: 0,
-    }
-
+  const positionCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
     scoped.teachers.forEach((t) => {
-      if (t.math) counts.Math++
-      if (t.science) counts.Science++
-      if (t.english) counts.English++
-      if (t.burmese) counts.Burmese++
-      if (t.history) counts.History++
-      if (t.geography) counts.Geography++
-      if (t.phy) counts.Physics++
-      if (t.che) counts.Chemistry++
-      if (t.bio) counts.Biology++
+      const pos = t.position || "Unknown"
+      counts[pos] = (counts[pos] || 0) + 1
     })
-
     return counts
   }, [scoped.teachers])
 
-  const subjects = Object.keys(subjectCounts)
-  const counts = Object.values(subjectCounts)
+  const positions = Object.keys(positionCounts)
+  const counts = Object.values(positionCounts)
 
   const options: ApexOptions = {
-    colors: [
-      "#2a31d8",
-      "#465fff",
-      "#7592ff",
-      "#c2d6ff",
-      "#dde9ff",
-      "#a855f7",
-      "#ec4899",
-      "#f59e0b",
-      "#10b981",
-    ],
-    chart: { fontFamily: "Outfit, sans-serif", type: "donut", height: 320 },
-    labels: subjects,
-    legend: {
-      position: "bottom",
-      horizontalAlign: "center",
-      fontFamily: "Outfit",
+    colors: ["#3641f5", "#465fff", "#7592ff", "#c2d6ff"],
+    chart: {
+      fontFamily: "Outfit, sans-serif",
+      type: "bar",
+      height: 350,
+      toolbar: { show: false },
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: "55%",
+        borderRadius: 4,
+      },
     },
     dataLabels: { enabled: false },
+    xaxis: {
+      categories: positions,
+      labels: {
+        style: {
+          colors: "#9CA3AF",
+          fontSize: "12px",
+        },
+      },
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: "#9CA3AF",
+          fontSize: "12px",
+        },
+      },
+    },
+    grid: {
+      borderColor: "#E5E7EB",
+      strokeDashArray: 4,
+    },
+    tooltip: {
+      y: {
+        formatter: (val) => `${val} teachers`,
+      },
+    },
   }
-  const series = counts
+
+  const series = [
+    {
+      name: "Teachers",
+      data: counts,
+    },
+  ]
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Teachers by Subject Competency
+            Teachers by Position
           </h3>
           <span className="block text-gray-500 text-theme-sm dark:text-gray-400">
-            Distribution across subject areas
+            Distribution across positions
           </span>
         </div>
         <select
@@ -91,13 +100,13 @@ export default function TeachersBySubjectChart() {
           ))}
         </select>
       </div>
-      <div className="flex justify-center mx-auto">
+      <div>
         <ReactApexChart
-          key={`${organizationId}-${series.join("-")}`}
+          key={`${organizationId}-${counts.join("-")}`}
           options={options}
           series={series}
-          type="donut"
-          height={320}
+          type="bar"
+          height={350}
         />
       </div>
     </div>

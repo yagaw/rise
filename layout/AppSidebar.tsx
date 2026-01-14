@@ -10,6 +10,7 @@ import {
   HorizontaLDots,
   BoxCubeIcon,
   UserCircleIcon,
+  GroupIcon,
 } from "../icons/index"
 import SidebarWidget from "./SidebarWidget"
 
@@ -34,6 +35,11 @@ const navItems: NavItem[] = [
       // { name: "SaaS", path: "/saas", new: true },
       // { name: "Logistics", path: "/logistics", new: true },
     ],
+  },
+  {
+    icon: <GroupIcon />,
+    name: "Organizations",
+    path: "/organizations",
   },
   {
     icon: <BoxCubeIcon />,
