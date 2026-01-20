@@ -50,7 +50,7 @@ export default function StudentsPage() {
     }
     if (editingIndex >= 0) {
       setManualStudents((prev) =>
-        prev.map((s, i) => (i === editingIndex ? payload : s))
+        prev.map((s, i) => (i === editingIndex ? payload : s)),
       )
     } else {
       setManualStudents((prev) => [payload, ...prev])
@@ -93,7 +93,10 @@ export default function StudentsPage() {
             >
               {schools.map((sch) => (
                 <option key={sch.id} value={sch.id}>
-                  {sch.name}
+                  {sch.sch_name_eng ??
+                    sch.sch_name_bur ??
+                    sch.sch_code ??
+                    sch.id}
                 </option>
               ))}
             </select>
@@ -168,8 +171,14 @@ export default function StudentsPage() {
                       {s.fullName}
                     </td>
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-300 text-theme-sm">
-                      {schools.find((x) => x.id === s.schoolId)?.name ??
-                        s.schoolId}
+                      {schools.find((x) => x.id === s.schoolId)
+                        ? (schools.find((x) => x.id === s.schoolId)!
+                            .sch_name_eng ??
+                          schools.find((x) => x.id === s.schoolId)!
+                            .sch_name_bur ??
+                          schools.find((x) => x.id === s.schoolId)!.sch_code ??
+                          s.schoolId)
+                        : s.schoolId}
                     </td>
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-300 text-theme-sm">
                       {s.gradeLevel}

@@ -1,5 +1,7 @@
 import { schools, students, teachers } from "@/data/education"
-import type { School, Student, Teacher } from "@/data/education"
+import type { Student } from "@/data/education"
+import type { School } from "@/types/school"
+import type { Teacher } from "@/types/teacher"
 
 async function StatCard({ title, value }: { title: string; value: number }) {
   return (
@@ -20,11 +22,12 @@ export default function AnalyticsPage() {
   const schoolStats = schools.map((school) => {
     return {
       ...school,
-      teacherCount: teachers.filter((t: Teacher) => t.schoolId === school.id)
-        .length,
+      teacherCount: teachers.filter(
+        (t: Teacher) => t.sch_code === school.sch_code,
+      ).length,
       studentCount: students.filter((s: Student) => s.schoolId === school.id)
         .length,
-      address: `${school.name} Campus`, // Mock address since our data doesn't have it
+      address: `${school.sch_name_eng ?? school.sch_name_bur ?? school.sch_code} Campus`,
     }
   })
 
@@ -55,7 +58,11 @@ export default function AnalyticsPage() {
             <tbody>
               {schoolStats.map((school) => (
                 <tr key={school.id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4 font-medium">{school.name}</td>
+                  <td className="py-3 px-4 font-medium">
+                    {school.sch_name_eng ??
+                      school.sch_name_bur ??
+                      school.sch_code}
+                  </td>
                   <td className="py-3 px-4">{school.address}</td>
                   <td className="py-3 px-4">{school.teacherCount}</td>
                   <td className="py-3 px-4">{school.studentCount}</td>

@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useMemo } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
+import SettingsButtons from "@/components/common/SettingsButtons"
 import Link from "next/link"
 import { Teacher } from "@/types/teacher"
 import {
@@ -178,6 +179,7 @@ export default function TeachersPage() {
 
   return (
     <div>
+      <SettingsButtons />
       <PageBreadcrumb pageTitle="Teachers" />
 
       <div className="rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
@@ -305,11 +307,11 @@ export default function TeachersPage() {
                         teacher.status === "stay"
                           ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
                           : teacher.status === "new"
-                          ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
-                          : teacher.status === "transfer_from" ||
-                            teacher.status === "transfer_to"
-                          ? "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                            ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
+                            : teacher.status === "transfer_from" ||
+                                teacher.status === "transfer_to"
+                              ? "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
+                              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
                       }`}
                     >
                       {teacher.status}
@@ -370,7 +372,7 @@ export default function TeachersPage() {
                   >
                     {page}
                   </button>
-                )
+                ),
               )}
             </div>
             <Button

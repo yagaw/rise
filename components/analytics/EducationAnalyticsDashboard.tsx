@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react"
 import AnalyticsMetrics from "./AnalyticsMetrics"
 import { getOrganizationScopedData, organizations } from "@/data/education"
+import SettingsButtons from "@/components/common/SettingsButtons"
 
 type MetricItem = {
   id: number
@@ -17,7 +18,7 @@ export default function EducationAnalyticsDashboard() {
 
   const scoped = useMemo(
     () => getOrganizationScopedData(organizationId),
-    [organizationId]
+    [organizationId],
   )
 
   const metrics: MetricItem[] = useMemo(() => {
@@ -89,6 +90,8 @@ export default function EducationAnalyticsDashboard() {
           ))}
         </select>
       </div>
+
+      <SettingsButtons />
 
       <AnalyticsMetrics items={metrics} />
     </div>

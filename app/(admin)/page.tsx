@@ -1,5 +1,4 @@
 import AnalyticsBarChart from "@/components/analytics/AnalyticsBarChart"
-import EducationAnalyticsDashboard from "@/components/analytics/EducationAnalyticsDashboard"
 import StudentGenderSessionChart from "@/components/analytics/StudentGenderSessionChart"
 import TeacherGenderSessionChart from "@/components/analytics/TeacherGenderSessionChart"
 import StudentsByGradeChart from "@/components/analytics/StudentsByGradeChart"
@@ -20,8 +19,7 @@ export const metadata: Metadata = {
 export default function Analytics() {
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
-      {/* Key Metrics */}
-      <EducationAnalyticsDashboard />
+      {/* Key Metrics (moved to Teachers and Schools pages) */}
 
       {/* School Analytics */}
       <div className="col-span-12">

@@ -17,15 +17,20 @@ function buildTemplate(sheet: SheetType) {
   }
   if (sheet === "teachers") {
     return [
-      ["fullName", "schoolId", "subject", "gender (male|female)"],
+      ["teach_name_eng", "sch_code", "position", "gender (male|female)"],
       ...teachers
         .slice(0, 5)
-        .map((t) => [t.fullName, t.schoolId, t.subject ?? "", t.gender]),
+        .map((t) => [
+          t.teach_name_eng ?? "",
+          t.sch_code ?? "",
+          t.position ?? "",
+          t.gender ?? "",
+        ]),
     ]
   }
   return [
-    ["name", "organizationId"],
-    ...schools.slice(0, 5).map((s) => [s.name, s.organizationId]),
+    ["sch_name_eng", "org"],
+    ...schools.slice(0, 5).map((s) => [s.sch_name_eng ?? "", s.org ?? ""]),
   ]
 }
 

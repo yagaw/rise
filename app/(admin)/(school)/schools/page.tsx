@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useMemo } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
+import SettingsButtons from "@/components/common/SettingsButtons"
 import Link from "next/link"
 import { School } from "@/types/school"
 import {
@@ -164,6 +165,7 @@ export default function SchoolsPage() {
 
   return (
     <div>
+      <SettingsButtons />
       <PageBreadcrumb pageTitle="Schools" />
 
       <div className="rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
@@ -351,7 +353,7 @@ export default function SchoolsPage() {
                   >
                     {page}
                   </button>
-                )
+                ),
               )}
             </div>
             <Button
