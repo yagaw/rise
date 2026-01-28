@@ -1,42 +1,49 @@
-"use client";
+"use client"
 
-import { useSidebar } from "@/context/SidebarContext";
-import AppHeader from "@/layout/AppHeader";
-import AppSidebar from "@/layout/AppSidebar";
-import Backdrop from "@/layout/Backdrop";
-import React from "react";
-import { usePathname } from "next/navigation";
+import { useSidebar } from "@/context/SidebarContext"
+import AppHeader from "@/layout/AppHeader"
+import AppSidebar from "@/layout/AppSidebar"
+import Backdrop from "@/layout/Backdrop"
+import React, { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 
 export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
-  const pathname = usePathname();
+  const { isExpanded, isHovered, isMobileOpen } = useSidebar()
+  const pathname = usePathname()
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Route-specific styles for the main content container
   const getRouteSpecificStyles = () => {
     switch (pathname) {
       case "/text-generator":
-        return "";
+        return ""
       case "/code-generator":
-        return "";
+        return ""
       case "/image-generator":
-        return "";
+        return ""
       case "/video-generator":
-        return "";
+        return ""
       default:
-        return "p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6";
+        return "p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6"
     }
-  };
+  }
 
   // Dynamic class for main content margin based on sidebar state
-  const mainContentMargin = isMobileOpen
-    ? "ml-0"
-    : isExpanded || isHovered
+  const mainContentMargin = !isMounted
     ? "xl:ml-[290px]"
-    : "xl:ml-[90px]";
+    : isMobileOpen
+      ? "ml-0"
+      : isExpanded || isHovered
+        ? "xl:ml-[290px]"
+        : "xl:ml-[90px]"
 
   return (
     <div className="min-h-screen xl:flex">
@@ -53,5 +60,5 @@ export default function AdminLayout({
         <div className={getRouteSpecificStyles()}>{children}</div>
       </div>
     </div>
-  );
+  )
 }
