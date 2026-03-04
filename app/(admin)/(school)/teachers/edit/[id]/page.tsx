@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import { useRouter } from "next/navigation"
 import { Teacher } from "@/types/teacher"
+import { DataYear } from "@/types/dataYear"
 import Form from "@/components/form/Form"
 import Label from "@/components/form/Label"
 import Input from "@/components/form/input/InputField"
@@ -11,52 +12,63 @@ import Checkbox from "@/components/form/input/Checkbox"
 import Button from "@/components/ui/button/Button"
 import TextArea from "@/components/form/input/TextArea"
 
-// Mock data - replace with actual API call
-const getTeacherById = (id: string): Teacher => {
-  return {
-    id: id,
-    teach_id: "T001",
-    teach_name_eng: "Aung Kyaw",
-    teach_name_bur: "အောင်ကျော်",
-    sch_code: "SCH001",
-    sch_name_eng: "Central High School",
-    org: "Ministry of Education",
-    gender: "Male",
-    yob: 1985,
-    marital_status: "Married",
-    religion: "Buddhist",
-    position: "Senior Teacher",
-    status: "stay",
-    edu_level: "Bachelor's Degree",
-    teach_exp_year: 15,
-    teach_exp_month: 3,
-    english: true,
-    math: true,
-    grade_9: true,
-    grade_10: true,
-  }
-}
-
 export default function EditTeacherPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = React.use(params)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
   const [formData, setFormData] = useState<Partial<Teacher>>({})
+  const [dataYears, setDataYears] = useState<DataYear[]>([])
   const [loading, setLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const getCheckboxValue = (value: unknown) =>
+    value === true || value === "true" || value === 1 || value === "1"
 
   useEffect(() => {
-    // Fetch teacher data
-    const teacherData = getTeacherById(params.id)
-    setFormData(teacherData)
-    setLoading(false)
-  }, [params.id])
+    const fetchDataYears = async () => {
+      try {
+        const response = await fetch("/api/data_year")
+        if (!response.ok) return
+        const data = (await response.json()) as DataYear[]
+        setDataYears(data)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    fetchDataYears()
+  }, [])
+
+  useEffect(() => {
+    const fetchTeacher = async () => {
+      try {
+        const response = await fetch(`/api/teachers/${id}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch teacher")
+        }
+
+        const data = (await response.json()) as Teacher
+        setFormData(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load teacher")
+        router.push("/teachers")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTeacher()
+  }, [id, router])
 
   const handleInputChange = (
     field: keyof Teacher,
-    value: string | number | boolean
+    value: string | number | boolean,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -64,12 +76,33 @@ export default function EditTeacherPage({
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    // TODO: Add API call to update teacher
-    alert("Teacher updated successfully!")
-    router.push("/teachers")
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`/api/teachers/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string }
+        throw new Error(errorData.error || "Failed to update teacher")
+      }
+
+      alert("Teacher updated successfully!")
+      router.push("/teachers")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to update teacher")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -201,6 +234,18 @@ export default function EditTeacherPage({
                   onChange={(e) =>
                     handleInputChange("religion", e.target.value)
                   }
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_year">Data Year</Label>
+                <Select
+                  options={dataYears.map((item) => ({
+                    value: item.id,
+                    label: item.title || item.id,
+                  }))}
+                  placeholder="Select data year"
+                  defaultValue={formData.data_year}
+                  onChange={(value) => handleInputChange("data_year", value)}
                 />
               </div>
             </div>
@@ -422,7 +467,7 @@ export default function EditTeacherPage({
                   onChange={(e) =>
                     handleInputChange(
                       "teach_exp_year",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -439,7 +484,7 @@ export default function EditTeacherPage({
                   onChange={(e) =>
                     handleInputChange(
                       "teach_exp_month",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -646,38 +691,45 @@ export default function EditTeacherPage({
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      checked={formData.nursery || false}
+                      id="teacher-edit-nursery"
+                      checked={getCheckboxValue(formData.nursery)}
                       onChange={(checked) =>
                         handleInputChange("nursery", checked)
                       }
                     />
-                    <Label className="mb-0">Nursery</Label>
+                    <Label htmlFor="teacher-edit-nursery" className="mb-0">
+                      Nursery
+                    </Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      checked={formData.kg || false}
+                      id="teacher-edit-kg"
+                      checked={getCheckboxValue(formData.kg)}
                       onChange={(checked) => handleInputChange("kg", checked)}
                     />
-                    <Label className="mb-0">KG</Label>
+                    <Label htmlFor="teacher-edit-kg" className="mb-0">
+                      KG
+                    </Label>
                   </div>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
-                    <div key={grade} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={
-                          (formData[
-                            `grade_${grade}` as keyof Teacher
-                          ] as boolean) || false
-                        }
-                        onChange={(checked) =>
-                          handleInputChange(
-                            `grade_${grade}` as keyof Teacher,
-                            checked
-                          )
-                        }
-                      />
-                      <Label className="mb-0">Grade {grade}</Label>
-                    </div>
-                  ))}
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => {
+                    const gradeField = `grade_${grade}` as keyof Teacher
+                    const gradeCheckboxId = `teacher-edit-grade-${grade}`
+
+                    return (
+                      <div key={grade} className="flex items-center gap-2">
+                        <Checkbox
+                          id={gradeCheckboxId}
+                          checked={getCheckboxValue(formData[gradeField])}
+                          onChange={(checked) =>
+                            handleInputChange(gradeField, checked)
+                          }
+                        />
+                        <Label htmlFor={gradeCheckboxId} className="mb-0">
+                          Grade {grade}
+                        </Label>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -692,7 +744,13 @@ export default function EditTeacherPage({
             >
               Cancel
             </Button>
-            <Button type="submit">Update Teacher</Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              isLoading={isSubmitting}
+            >
+              {isSubmitting ? "Updating..." : "Update Teacher"}
+            </Button>
           </div>
         </Form>
       </div>

@@ -38,65 +38,99 @@ To get started with TailAdmin, ensure you have the following prerequisites insta
    yarn dev
    ```
 
+## Supabase Setup (Schools)
+
+This project now uses Supabase for school CRUD in the `/schools` pages.
+The setup follows the modern `@supabase/ssr` pattern (replacement for `@supabase/auth-helpers-nextjs`).
+
+1. Copy environment template:
+
+```bash
+cp .env.example .env.local
+```
+
+2. Set your Supabase project values in `.env.local`:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SCHOOLS_TABLE` (defaults to `sp_ease`)
+- `SUPABASE_TEACHERS_TABLE` (defaults to `tp_ease`)
+- `SUPABASE_SCHOOL_QLE_TABLE` (defaults to `qle_ease`)
+- `SUPABASE_ECCD_TABLE` (defaults to `eccd_ease`)
+- `SUPABASE_TEES_TABLE` (defaults to `tees_ease`)
+- `SUPABASE_DATA_YEAR_TABLE` (defaults to `data_year`)
+
+3. Ensure your Supabase database has tables named `sp_ease`, `tp_ease`, `qle_ease`, `eccd_ease`, `tees_ease`, and `data_year` (or set different names via `SUPABASE_SCHOOLS_TABLE`, `SUPABASE_TEACHERS_TABLE`, `SUPABASE_SCHOOL_QLE_TABLE`, `SUPABASE_ECCD_TABLE`, `SUPABASE_TEES_TABLE`, and `SUPABASE_DATA_YEAR_TABLE`) with columns matching `types/school.ts`, `types/teacher.ts`, `types/schoolQle.ts`, `types/eccdStudent.ts`, `types/teesStudent.ts`, and `types/dataYear.ts`.
+
+4. If you get `row-level security policy` errors for School QLE CRUD, run:
+
+- SQL script: `supabase/qle_ease_rls.sql`
+
+4. Supabase helpers used in this project:
+
+- Browser client: `lib/supabase/client.ts`
+- Server/route handler client: `lib/supabase/server.ts`
+- Session middleware: `middleware.ts` + `lib/supabase/middleware.ts`
+
 ## Changelog
 
 ### Version 2.2.0 - [July 30, 2025]
 
-* Fixed reported minor bugs and UI issues
-* Updated packages
-#### 🧭 **Logistics Dashboard** – *Added*
+- Fixed reported minor bugs and UI issues
+- Updated packages
 
-* Redesigned logistics dashboard interface
-* Delivery activity table
-* Delivery tracking timeline
-* Total revenue earned chart
+#### 🧭 **Logistics Dashboard** – _Added_
 
-#### 🛍️ **E-commerce Pages** – *Added*
+- Redesigned logistics dashboard interface
+- Delivery activity table
+- Delivery tracking timeline
+- Total revenue earned chart
 
-* **Products**:
+#### 🛍️ **E-commerce Pages** – _Added_
 
-  * Product list table
-  * Add product form
-* **Invoices**:
+- **Products**:
+  - Product list table
+  - Add product form
 
-  * Invoice list table
-  * Single invoice view
-  * View invoice modal
-  * Create invoice form
-* **Transactions**:
+- **Invoices**:
+  - Invoice list table
+  - Single invoice view
+  - View invoice modal
+  - Create invoice form
 
-  * Transaction list table
-  * Single transaction detail view
+- **Transactions**:
+  - Transaction list table
+  - Single transaction detail view
 
-#### 🧠 **AI Assistant Suite (New App Example)** – *Newly Added*
+#### 🧠 **AI Assistant Suite (New App Example)** – _Newly Added_
 
-* Text generator
-* Image generator
-* Code generator
-* Video generator
+- Text generator
+- Image generator
+- Code generator
+- Video generator
 
-#### 🔑 **API Key Management** – *Newly Added*
+#### 🔑 **API Key Management** – _Newly Added_
 
-* API key dashboard
-* API key table view
-* Add API key modal
+- API key dashboard
+- API key table view
+- Add API key modal
 
-#### 🔌 **Integrations (Pages)** – *Newly Added*
+#### 🔌 **Integrations (Pages)** – _Newly Added_
 
-* Integration cards UI
-* Integration details modal
-* Add integration modal
-* Integration settings modal
-* Delete integration confirmation modal
+- Integration cards UI
+- Integration details modal
+- Add integration modal
+- Integration settings modal
+- Delete integration confirmation modal
 
-### ⚙️ **Support (New App Example)** – *Newly Added*
+### ⚙️ **Support (New App Example)** – _Newly Added_
 
-* Support ticket list page
-* Support ticket reply interface
+- Support ticket list page
+- Support ticket reply interface
 
-#### 📊 **Charts & Visuals** - *Imporoved*
+#### 📊 **Charts & Visuals** - _Imporoved_
 
-* New bar chart design added
+- New bar chart design added
 
 ### Version 2.1.2 - [Jun 02, 2025]
 

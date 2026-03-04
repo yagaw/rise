@@ -1,8 +1,9 @@
 "use client"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import { useRouter } from "next/navigation"
 import { School } from "@/types/school"
+import { DataYear } from "@/types/dataYear"
 import Form from "@/components/form/Form"
 import Label from "@/components/form/Label"
 import Input from "@/components/form/input/InputField"
@@ -14,14 +15,31 @@ import TextArea from "@/components/form/input/TextArea"
 export default function AddSchoolPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [dataYears, setDataYears] = useState<DataYear[]>([])
   const [formData, setFormData] = useState<Partial<School>>({
     joined_rise: false,
     nfe: false,
   })
 
+  useEffect(() => {
+    const fetchDataYears = async () => {
+      try {
+        const response = await fetch("/api/data_year")
+        if (!response.ok) return
+        const data = (await response.json()) as DataYear[]
+        setDataYears(data)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    fetchDataYears()
+  }, [])
+
   const handleInputChange = (
     field: keyof School,
-    value: string | number | boolean
+    value: string | number | boolean,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -29,12 +47,33 @@ export default function AddSchoolPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    // TODO: Add API call to create school
-    alert("School added successfully!")
-    router.push("/schools")
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch("/api/schools", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string }
+        throw new Error(errorData.error || "Failed to create school")
+      }
+
+      alert("School added successfully!")
+      router.push("/schools")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to add school")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const tabs = [
@@ -92,6 +131,17 @@ export default function AddSchoolPage() {
                   type="text"
                   placeholder="Enter organization"
                   onChange={(e) => handleInputChange("org", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_year">Data Year</Label>
+                <Select
+                  options={dataYears.map((item) => ({
+                    value: item.id,
+                    label: item.title || item.id,
+                  }))}
+                  placeholder="Select data year"
+                  onChange={(value) => handleInputChange("data_year", value)}
                 />
               </div>
               <div>
@@ -578,7 +628,7 @@ export default function AddSchoolPage() {
                       onChange={(e) =>
                         handleInputChange(
                           "stu_female_tt",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -592,7 +642,7 @@ export default function AddSchoolPage() {
                       onChange={(e) =>
                         handleInputChange(
                           "stu_male_tt",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -640,7 +690,7 @@ export default function AddSchoolPage() {
                           onChange={(e) =>
                             handleInputChange(
                               `g${grade}_female` as keyof School,
-                              parseInt(e.target.value)
+                              parseInt(e.target.value),
                             )
                           }
                         />
@@ -656,7 +706,7 @@ export default function AddSchoolPage() {
                           onChange={(e) =>
                             handleInputChange(
                               `g${grade}_male` as keyof School,
-                              parseInt(e.target.value)
+                              parseInt(e.target.value),
                             )
                           }
                         />
@@ -685,7 +735,7 @@ export default function AddSchoolPage() {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_female_moe",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -699,7 +749,7 @@ export default function AddSchoolPage() {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_male_moe",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -723,7 +773,7 @@ export default function AddSchoolPage() {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_female_com",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -739,7 +789,7 @@ export default function AddSchoolPage() {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_male_com",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -1236,7 +1286,7 @@ export default function AddSchoolPage() {
                   onChange={(e) =>
                     handleInputChange(
                       "boys_oosc_5_18",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -1252,7 +1302,7 @@ export default function AddSchoolPage() {
                   onChange={(e) =>
                     handleInputChange(
                       "girls_oosc_5_18",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -1269,7 +1319,13 @@ export default function AddSchoolPage() {
             >
               Cancel
             </Button>
-            <Button type="submit">Save School</Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              isLoading={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save School"}
+            </Button>
           </div>
         </Form>
       </div>

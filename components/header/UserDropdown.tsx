@@ -1,20 +1,32 @@
-"use client";
-import Image from "next/image";
-import Link from "next/link";
-import React, { useState } from "react";
-import { Dropdown } from "../ui/dropdown/Dropdown";
-import { DropdownItem } from "../ui/dropdown/DropdownItem";
+"use client"
+import { createSupabaseBrowserClient } from "@/lib/supabase/client"
+import Image from "next/image"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import React, { useMemo, useState } from "react"
+import { Dropdown } from "../ui/dropdown/Dropdown"
+import { DropdownItem } from "../ui/dropdown/DropdownItem"
 
 export default function UserDropdown() {
-  const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter()
+  const supabase = useMemo(() => createSupabaseBrowserClient(), [])
+  const [isOpen, setIsOpen] = useState(false)
 
   function toggleDropdown() {
-    setIsOpen(!isOpen);
+    setIsOpen(!isOpen)
   }
 
   function closeDropdown() {
-    setIsOpen(false);
+    setIsOpen(false)
   }
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    closeDropdown()
+    router.push("/signin")
+    router.refresh()
+  }
+
   return (
     <div className="relative">
       <button
@@ -143,8 +155,9 @@ export default function UserDropdown() {
             </DropdownItem>
           </li>
         </ul>
-        <Link
-          href="/signin"
+        <button
+          type="button"
+          onClick={handleSignOut}
           className="flex items-center gap-3 px-3 py-2 mt-3 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
         >
           <svg
@@ -163,8 +176,8 @@ export default function UserDropdown() {
             />
           </svg>
           Sign out
-        </Link>
+        </button>
       </Dropdown>
     </div>
-  );
+  )
 }

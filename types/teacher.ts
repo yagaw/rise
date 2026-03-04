@@ -1,6 +1,7 @@
 export interface Teacher {
   id: string
   created_at?: string
+  data_year?: string
   org?: string
   sch_code?: string
   sch_name_eng?: string

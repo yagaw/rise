@@ -1,8 +1,9 @@
 "use client"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import { useRouter } from "next/navigation"
 import { Teacher } from "@/types/teacher"
+import { DataYear } from "@/types/dataYear"
 import Form from "@/components/form/Form"
 import Label from "@/components/form/Label"
 import Input from "@/components/form/input/InputField"
@@ -14,11 +15,31 @@ import TextArea from "@/components/form/input/TextArea"
 export default function AddTeacherPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [dataYears, setDataYears] = useState<DataYear[]>([])
   const [formData, setFormData] = useState<Partial<Teacher>>({})
+
+  useEffect(() => {
+    const fetchDataYears = async () => {
+      try {
+        const response = await fetch("/api/data_year")
+        if (!response.ok) return
+        const data = (await response.json()) as DataYear[]
+        setDataYears(data)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    fetchDataYears()
+  }, [])
+
+  const getCheckboxValue = (value: unknown) =>
+    value === true || value === "true" || value === 1 || value === "1"
 
   const handleInputChange = (
     field: keyof Teacher,
-    value: string | number | boolean
+    value: string | number | boolean,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -26,12 +47,33 @@ export default function AddTeacherPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    // TODO: Add API call to create teacher
-    alert("Teacher added successfully!")
-    router.push("/teachers")
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch("/api/teachers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string }
+        throw new Error(errorData.error || "Failed to create teacher")
+      }
+
+      alert("Teacher added successfully!")
+      router.push("/teachers")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to add teacher")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const tabs = [
@@ -148,6 +190,17 @@ export default function AddTeacherPage() {
                   onChange={(e) =>
                     handleInputChange("religion", e.target.value)
                   }
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_year">Data Year</Label>
+                <Select
+                  options={dataYears.map((item) => ({
+                    value: item.id,
+                    label: item.title || item.id,
+                  }))}
+                  placeholder="Select data year"
+                  onChange={(value) => handleInputChange("data_year", value)}
                 />
               </div>
             </div>
@@ -353,7 +406,7 @@ export default function AddTeacherPage() {
                   onChange={(e) =>
                     handleInputChange(
                       "teach_exp_year",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -369,7 +422,7 @@ export default function AddTeacherPage() {
                   onChange={(e) =>
                     handleInputChange(
                       "teach_exp_month",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -574,38 +627,45 @@ export default function AddTeacherPage() {
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      checked={formData.nursery || false}
+                      id="teacher-add-nursery"
+                      checked={getCheckboxValue(formData.nursery)}
                       onChange={(checked) =>
                         handleInputChange("nursery", checked)
                       }
                     />
-                    <Label className="mb-0">Nursery</Label>
+                    <Label htmlFor="teacher-add-nursery" className="mb-0">
+                      Nursery
+                    </Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      checked={formData.kg || false}
+                      id="teacher-add-kg"
+                      checked={getCheckboxValue(formData.kg)}
                       onChange={(checked) => handleInputChange("kg", checked)}
                     />
-                    <Label className="mb-0">KG</Label>
+                    <Label htmlFor="teacher-add-kg" className="mb-0">
+                      KG
+                    </Label>
                   </div>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
-                    <div key={grade} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={
-                          (formData[
-                            `grade_${grade}` as keyof Teacher
-                          ] as boolean) || false
-                        }
-                        onChange={(checked) =>
-                          handleInputChange(
-                            `grade_${grade}` as keyof Teacher,
-                            checked
-                          )
-                        }
-                      />
-                      <Label className="mb-0">Grade {grade}</Label>
-                    </div>
-                  ))}
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => {
+                    const gradeField = `grade_${grade}` as keyof Teacher
+                    const gradeCheckboxId = `teacher-add-grade-${grade}`
+
+                    return (
+                      <div key={grade} className="flex items-center gap-2">
+                        <Checkbox
+                          id={gradeCheckboxId}
+                          checked={getCheckboxValue(formData[gradeField])}
+                          onChange={(checked) =>
+                            handleInputChange(gradeField, checked)
+                          }
+                        />
+                        <Label htmlFor={gradeCheckboxId} className="mb-0">
+                          Grade {grade}
+                        </Label>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -620,7 +680,13 @@ export default function AddTeacherPage() {
             >
               Cancel
             </Button>
-            <Button type="submit">Save Teacher</Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              isLoading={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save Teacher"}
+            </Button>
           </div>
         </Form>
       </div>

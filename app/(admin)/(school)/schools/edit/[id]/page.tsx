@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import { useRouter } from "next/navigation"
 import { School } from "@/types/school"
+import { DataYear } from "@/types/dataYear"
 import Form from "@/components/form/Form"
 import Label from "@/components/form/Label"
 import Input from "@/components/form/input/InputField"
@@ -10,46 +11,60 @@ import Select from "@/components/form/Select"
 import Checkbox from "@/components/form/input/Checkbox"
 import Button from "@/components/ui/button/Button"
 
-// Mock data - replace with actual API call
-const getSchoolById = (id: string): School => {
-  // This would normally be an API call
-  return {
-    id: id,
-    sch_code: "SCH001",
-    sch_name_eng: "Central High School",
-    sch_name_bur: "ဗဟိုအထက်တန်းကျောင်း",
-    org: "Ministry of Education",
-    sr_eng_mimu: "Yangon",
-    dist_eng_mimu: "Yangon East",
-    ts_eng_mimu: "Dagon",
-    sch_status: "Active",
-    sch_type: "Government",
-    sch_estd_year: 1990,
-    stu_female_tt: 250,
-    stu_male_tt: 280,
-    tea_female_moe: 15,
-    tea_male_moe: 10,
-    joined_rise: true,
-    nfe: false,
-  }
-}
-
-export default function EditSchoolPage({ params }: { params: { id: string } }) {
+export default function EditSchoolPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = React.use(params)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
   const [formData, setFormData] = useState<Partial<School>>({})
+  const [dataYears, setDataYears] = useState<DataYear[]>([])
   const [loading, setLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    // Fetch school data
-    const schoolData = getSchoolById(params.id)
-    setFormData(schoolData)
-    setLoading(false)
-  }, [params.id])
+    const fetchDataYears = async () => {
+      try {
+        const response = await fetch("/api/data_year")
+        if (!response.ok) return
+        const data = (await response.json()) as DataYear[]
+        setDataYears(data)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    fetchDataYears()
+  }, [])
+
+  useEffect(() => {
+    const fetchSchool = async () => {
+      try {
+        const response = await fetch(`/api/schools/${id}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch school")
+        }
+
+        const data = (await response.json()) as School
+        setFormData(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load school")
+        router.push("/schools")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSchool()
+  }, [id, router])
 
   const handleInputChange = (
     field: keyof School,
-    value: string | number | boolean
+    value: string | number | boolean,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -57,12 +72,33 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    // TODO: Add API call to update school
-    alert("School updated successfully!")
-    router.push("/schools")
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`/api/schools/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string }
+        throw new Error(errorData.error || "Failed to update school")
+      }
+
+      alert("School updated successfully!")
+      router.push("/schools")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to update school")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -130,6 +166,18 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                   placeholder="Enter organization"
                   defaultValue={formData.org}
                   onChange={(e) => handleInputChange("org", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_year">Data Year</Label>
+                <Select
+                  options={dataYears.map((item) => ({
+                    value: item.id,
+                    label: item.title || item.id,
+                  }))}
+                  placeholder="Select data year"
+                  defaultValue={formData.data_year}
+                  onChange={(value) => handleInputChange("data_year", value)}
                 />
               </div>
               <div>
@@ -653,7 +701,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                       onChange={(e) =>
                         handleInputChange(
                           "stu_female_tt",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -668,7 +716,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                       onChange={(e) =>
                         handleInputChange(
                           "stu_male_tt",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -723,7 +771,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                           onChange={(e) =>
                             handleInputChange(
                               `g${grade}_female` as keyof School,
-                              parseInt(e.target.value)
+                              parseInt(e.target.value),
                             )
                           }
                         />
@@ -742,7 +790,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                           onChange={(e) =>
                             handleInputChange(
                               `g${grade}_male` as keyof School,
-                              parseInt(e.target.value)
+                              parseInt(e.target.value),
                             )
                           }
                         />
@@ -772,7 +820,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_female_moe",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -787,7 +835,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_male_moe",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -812,7 +860,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_female_com",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -829,7 +877,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                       onChange={(e) =>
                         handleInputChange(
                           "tea_male_com",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                     />
@@ -1341,7 +1389,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                   onChange={(e) =>
                     handleInputChange(
                       "boys_oosc_5_18",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -1358,7 +1406,7 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
                   onChange={(e) =>
                     handleInputChange(
                       "girls_oosc_5_18",
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                 />
@@ -1375,7 +1423,13 @@ export default function EditSchoolPage({ params }: { params: { id: string } }) {
             >
               Cancel
             </Button>
-            <Button type="submit">Update School</Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              isLoading={isSubmitting}
+            >
+              {isSubmitting ? "Updating..." : "Update School"}
+            </Button>
           </div>
         </Form>
       </div>

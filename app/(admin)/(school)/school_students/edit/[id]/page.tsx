@@ -2,97 +2,103 @@
 import React, { useState, useEffect } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import { useRouter } from "next/navigation"
+import { TeesStudent } from "@/types/teesStudent"
+import { DataYear } from "@/types/dataYear"
 import Form from "@/components/form/Form"
 import Label from "@/components/form/Label"
 import Input from "@/components/form/input/InputField"
 import Select from "@/components/form/Select"
 import Button from "@/components/ui/button/Button"
 
-type SchoolStudentForm = {
-  id: string
-  org: string
-  sch_code: string
-  sch_status: string
-  sch_name_eng: string
-  sr_eng_mimu: string
-  ts_eng_mimu: string
-  std_id: string
-  std_name_eng: string
-  std_name_bur: string
-  enroll_date: string
-  sex: string
-  dob: string
-  age: string
-  grade_16_17: string
-  grade_17_18: string
-  grade_18_19: string
-  grade_19_20: string
-  grade_20_21: string
-  grade_21_22: string
-  grade_22_23: string
-  grade_23_24: string
-  year_tees_std_began: string
-}
-
-// Mock data - replace with actual API call
-const getSchoolStudentById = (id: string): SchoolStudentForm => {
-  return {
-    id: id,
-    org: "SEE",
-    sch_code: "SEE001",
-    sch_status: "Active",
-    sch_name_eng: "SEE School 1",
-    sr_eng_mimu: "Kachin",
-    ts_eng_mimu: "Falam",
-    std_id: "STD-0001",
-    std_name_eng: "Aung Kyaw",
-    std_name_bur: "အောင်ကျော်",
-    enroll_date: "2025-09-01",
-    sex: "male",
-    dob: "2010-03-10",
-    age: "15",
-    grade_16_17: "Grade 6",
-    grade_17_18: "Grade 7",
-    grade_18_19: "Grade 8",
-    grade_19_20: "Grade 9",
-    grade_20_21: "Grade 10",
-    grade_21_22: "Grade 11",
-    grade_22_23: "Grade 12",
-    grade_23_24: "Grade 13",
-    year_tees_std_began: "2016",
-  }
-}
-
 export default function EditSchoolStudentPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = React.use(params)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
-  const [formData, setFormData] = useState<Partial<SchoolStudentForm>>({})
+  const [dataYears, setDataYears] = useState<DataYear[]>([])
+  const [formData, setFormData] = useState<Partial<TeesStudent>>({})
   const [loading, setLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    // Fetch school student data
-    const studentData = getSchoolStudentById(params.id)
-    setFormData(studentData)
-    setLoading(false)
-  }, [params.id])
+    const fetchDataYears = async () => {
+      try {
+        const response = await fetch("/api/data_year")
+        if (!response.ok) return
+        const data = (await response.json()) as DataYear[]
+        setDataYears(data)
+      } catch (error) {
+        console.error(error)
+      }
+    }
 
-  const handleInputChange = (field: keyof SchoolStudentForm, value: string) => {
+    fetchDataYears()
+  }, [])
+
+  useEffect(() => {
+    const fetchStudent = async () => {
+      try {
+        const response = await fetch(`/api/tees/${id}`)
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as { error?: string }
+          throw new Error(errorData.error || "Failed to fetch TEE student")
+        }
+
+        const data = (await response.json()) as TeesStudent
+        setFormData(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load TEE student")
+        router.push("/school_students")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStudent()
+  }, [id, router])
+
+  const handleInputChange = (
+    field: keyof TeesStudent,
+    value: string | number,
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    // TODO: Add API call to update school student
-    alert("School student updated successfully!")
-    router.push("/school_students")
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`/api/tees/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string }
+        throw new Error(errorData.error || "Failed to update TEE student")
+      }
+
+      alert("TEE student updated successfully!")
+      router.push("/school_students")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to update TEE student")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -111,7 +117,7 @@ export default function EditSchoolStudentPage({
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="Edit School Student" />
+      <PageBreadcrumb pageTitle="Edit TEES Student" />
 
       <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
         {/* Tabs */}
@@ -173,8 +179,8 @@ export default function EditSchoolStudentPage({
                 <Label htmlFor="sex">Gender</Label>
                 <Select
                   options={[
-                    { value: "male", label: "Male" },
-                    { value: "female", label: "Female" },
+                    { value: "Male", label: "Male" },
+                    { value: "Female", label: "Female" },
                   ]}
                   placeholder="Select gender"
                   defaultValue={formData.sex}
@@ -187,7 +193,7 @@ export default function EditSchoolStudentPage({
                   id="dob"
                   type="date"
                   placeholder="Enter date of birth"
-                  defaultValue={formData.dob}
+                  defaultValue={formData.dob || ""}
                   onChange={(e) => handleInputChange("dob", e.target.value)}
                 />
               </div>
@@ -197,8 +203,15 @@ export default function EditSchoolStudentPage({
                   id="age"
                   type="number"
                   placeholder="Enter age"
-                  defaultValue={formData.age}
-                  onChange={(e) => handleInputChange("age", e.target.value)}
+                  defaultValue={
+                    formData.age === undefined ? "" : String(formData.age)
+                  }
+                  onChange={(e) =>
+                    handleInputChange(
+                      "age",
+                      e.target.value === "" ? "" : Number(e.target.value),
+                    )
+                  }
                 />
               </div>
               <div>
@@ -207,7 +220,7 @@ export default function EditSchoolStudentPage({
                   id="enroll_date"
                   type="date"
                   placeholder="Enter enrollment date"
-                  defaultValue={formData.enroll_date}
+                  defaultValue={formData.enroll_date || ""}
                   onChange={(e) =>
                     handleInputChange("enroll_date", e.target.value)
                   }
@@ -221,9 +234,16 @@ export default function EditSchoolStudentPage({
                   id="year_tees_std_began"
                   type="number"
                   placeholder="Enter year student began at TEES"
-                  defaultValue={formData.year_tees_std_began}
+                  defaultValue={
+                    formData.year_tees_std_began === undefined
+                      ? ""
+                      : String(formData.year_tees_std_began)
+                  }
                   onChange={(e) =>
-                    handleInputChange("year_tees_std_began", e.target.value)
+                    handleInputChange(
+                      "year_tees_std_began",
+                      e.target.value === "" ? "" : Number(e.target.value),
+                    )
                   }
                 />
               </div>
@@ -241,6 +261,18 @@ export default function EditSchoolStudentPage({
                   placeholder="Enter organization"
                   defaultValue={formData.org}
                   onChange={(e) => handleInputChange("org", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_year">Data Year</Label>
+                <Select
+                  options={dataYears.map((item) => ({
+                    value: item.id,
+                    label: item.title || item.id,
+                  }))}
+                  placeholder="Select data year"
+                  defaultValue={formData.data_year}
+                  onChange={(value) => handleInputChange("data_year", value)}
                 />
               </div>
               <div>
@@ -310,99 +342,15 @@ export default function EditSchoolStudentPage({
           {/* Academic History Tab */}
           {activeTab === "academic" && (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <Label htmlFor="grade_16_17">Grade (2016-2017)</Label>
+              <div className="col-span-2">
+                <Label htmlFor="grade_25_26">Grade (2025-2026)</Label>
                 <Input
-                  id="grade_16_17"
+                  id="grade_25_26"
                   type="text"
-                  placeholder="Enter grade for 2016-2017"
-                  defaultValue={formData.grade_16_17}
+                  placeholder="Enter grade for 2025-2026"
+                  defaultValue={formData.grade_25_26}
                   onChange={(e) =>
-                    handleInputChange("grade_16_17", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade_17_18">Grade (2017-2018)</Label>
-                <Input
-                  id="grade_17_18"
-                  type="text"
-                  placeholder="Enter grade for 2017-2018"
-                  defaultValue={formData.grade_17_18}
-                  onChange={(e) =>
-                    handleInputChange("grade_17_18", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade_18_19">Grade (2018-2019)</Label>
-                <Input
-                  id="grade_18_19"
-                  type="text"
-                  placeholder="Enter grade for 2018-2019"
-                  defaultValue={formData.grade_18_19}
-                  onChange={(e) =>
-                    handleInputChange("grade_18_19", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade_19_20">Grade (2019-2020)</Label>
-                <Input
-                  id="grade_19_20"
-                  type="text"
-                  placeholder="Enter grade for 2019-2020"
-                  defaultValue={formData.grade_19_20}
-                  onChange={(e) =>
-                    handleInputChange("grade_19_20", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade_20_21">Grade (2020-2021)</Label>
-                <Input
-                  id="grade_20_21"
-                  type="text"
-                  placeholder="Enter grade for 2020-2021"
-                  defaultValue={formData.grade_20_21}
-                  onChange={(e) =>
-                    handleInputChange("grade_20_21", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade_21_22">Grade (2021-2022)</Label>
-                <Input
-                  id="grade_21_22"
-                  type="text"
-                  placeholder="Enter grade for 2021-2022"
-                  defaultValue={formData.grade_21_22}
-                  onChange={(e) =>
-                    handleInputChange("grade_21_22", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade_22_23">Grade (2022-2023)</Label>
-                <Input
-                  id="grade_22_23"
-                  type="text"
-                  placeholder="Enter grade for 2022-2023"
-                  defaultValue={formData.grade_22_23}
-                  onChange={(e) =>
-                    handleInputChange("grade_22_23", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade_23_24">Grade (2023-2024)</Label>
-                <Input
-                  id="grade_23_24"
-                  type="text"
-                  placeholder="Enter grade for 2023-2024"
-                  defaultValue={formData.grade_23_24}
-                  onChange={(e) =>
-                    handleInputChange("grade_23_24", e.target.value)
+                    handleInputChange("grade_25_26", e.target.value)
                   }
                 />
               </div>
@@ -414,11 +362,18 @@ export default function EditSchoolStudentPage({
             <Button
               type="button"
               variant="outline"
+              disabled={isSubmitting}
               onClick={() => router.push("/school_students")}
             >
               Cancel
             </Button>
-            <Button type="submit">Update School Student</Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              isLoading={isSubmitting}
+            >
+              {isSubmitting ? "Updating..." : "Update TEES Student"}
+            </Button>
           </div>
         </Form>
       </div>

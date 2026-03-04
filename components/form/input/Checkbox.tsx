@@ -1,12 +1,12 @@
-import type React from "react";
+import type React from "react"
 
 interface CheckboxProps {
-  label?: string;
-  checked: boolean;
-  className?: string;
-  id?: string;
-  onChange: (checked: boolean) => void;
-  disabled?: boolean;
+  label?: string
+  checked: boolean | string | number | null | undefined
+  className?: string
+  id?: string
+  onChange: (checked: boolean) => void
+  disabled?: boolean
 }
 
 const Checkbox: React.FC<CheckboxProps> = ({
@@ -17,6 +17,9 @@ const Checkbox: React.FC<CheckboxProps> = ({
   className = "",
   disabled = false,
 }) => {
+  const normalizedChecked =
+    checked === true || checked === "true" || checked === 1 || checked === "1"
+
   return (
     <label
       className={`flex items-center space-x-3 group cursor-pointer ${
@@ -29,11 +32,11 @@ const Checkbox: React.FC<CheckboxProps> = ({
           type="checkbox"
           className={`w-5 h-5 appearance-none cursor-pointer dark:border-gray-700 border border-gray-300 checked:border-transparent rounded-md checked:bg-brand-500 disabled:opacity-60 
           ${className}`}
-          checked={checked}
+          checked={normalizedChecked}
           onChange={(e) => onChange(e.target.checked)}
           disabled={disabled}
         />
-        {checked && (
+        {normalizedChecked && (
           <svg
             className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
             xmlns="http://www.w3.org/2000/svg"
@@ -76,7 +79,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
         </span>
       )}
     </label>
-  );
-};
+  )
+}
 
-export default Checkbox;
+export default Checkbox

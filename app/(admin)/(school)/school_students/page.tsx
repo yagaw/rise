@@ -1,8 +1,9 @@
 "use client"
-import React, { useState, useMemo } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import SettingsButtons from "@/components/common/SettingsButtons"
 import Link from "next/link"
+import { TeesStudent } from "@/types/teesStudent"
 import {
   Table,
   TableBody,
@@ -13,86 +14,7 @@ import {
 import { AngleDownIcon, AngleUpIcon, PencilIcon, TrashBinIcon } from "@/icons"
 import Button from "@/components/ui/button/Button"
 
-type SchoolStudent = {
-  id: string
-  org: string
-  sch_code: string
-  sch_status?: string
-  sch_name_eng?: string
-  sr_eng_mimu?: string
-  ts_eng_mimu?: string
-  std_id: string
-  std_name_eng: string
-  std_name_bur?: string
-  enroll_date?: string
-  sex?: string
-  dob?: string
-  age?: string
-  grade_16_17?: string
-  grade_17_18?: string
-  grade_18_19?: string
-  grade_19_20?: string
-  grade_20_21?: string
-  grade_21_22?: string
-  grade_22_23?: string
-  grade_23_24?: string
-  year_tees_std_began?: string
-}
-
-const mockRows: SchoolStudent[] = [
-  {
-    id: "s-1",
-    org: "SEE",
-    sch_code: "SEE001",
-    sch_status: "Active",
-    sch_name_eng: "SEE School 1",
-    sr_eng_mimu: "Kachin",
-    ts_eng_mimu: "Falam",
-    std_id: "STD-0001",
-    std_name_eng: "Aung Kyaw",
-    std_name_bur: "အောင်ကျော်",
-    enroll_date: "2025-09-01",
-    sex: "male",
-    dob: "2010-03-10",
-    age: "15",
-    grade_16_17: "Grade 6",
-    grade_17_18: "Grade 7",
-    grade_18_19: "Grade 8",
-    grade_19_20: "Grade 9",
-    grade_20_21: "Grade 10",
-    grade_21_22: "Grade 11",
-    grade_22_23: "Grade 12",
-    grade_23_24: "Grade 13",
-    year_tees_std_began: "2016",
-  },
-  {
-    id: "s-2",
-    org: "SEE",
-    sch_code: "SEE002",
-    sch_status: "Active",
-    sch_name_eng: "SEE School 2",
-    sr_eng_mimu: "Shan",
-    ts_eng_mimu: "Taunggyi",
-    std_id: "STD-0002",
-    std_name_eng: "Nwe Nwe",
-    std_name_bur: "နွယ်နွယ်",
-    enroll_date: "2025-09-01",
-    sex: "female",
-    dob: "2011-05-20",
-    age: "14",
-    grade_16_17: "Grade 5",
-    grade_17_18: "Grade 6",
-    grade_18_19: "Grade 7",
-    grade_19_20: "Grade 8",
-    grade_20_21: "Grade 9",
-    grade_21_22: "Grade 10",
-    grade_22_23: "Grade 11",
-    grade_23_24: "Grade 12",
-    year_tees_std_began: "2017",
-  },
-]
-
-type SortField = keyof SchoolStudent
+type SortField = keyof TeesStudent
 type SortDirection = "asc" | "desc"
 
 interface SortConfig {
@@ -101,7 +23,8 @@ interface SortConfig {
 }
 
 export default function SchoolStudentsListPage() {
-  const [rows, setRows] = useState<SchoolStudent[]>(mockRows)
+  const [rows, setRows] = useState<TeesStudent[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -109,6 +32,29 @@ export default function SchoolStudentsListPage() {
     direction: "asc",
   })
   const itemsPerPage = 10
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const response = await fetch("/api/tees")
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as { error?: string }
+          throw new Error(errorData.error || "Failed to fetch TEE students")
+        }
+
+        const data = (await response.json()) as TeesStudent[]
+        setRows(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load TEE students")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStudents()
+  }, [])
 
   // Sort function
   const handleSort = (field: SortField) => {
@@ -126,6 +72,7 @@ export default function SchoolStudentsListPage() {
       return (
         r.std_name_eng?.toLowerCase().includes(searchLower) ||
         r.std_id?.toLowerCase().includes(searchLower) ||
+        r.data_year?.toLowerCase().includes(searchLower) ||
         r.sch_name_eng?.toLowerCase().includes(searchLower) ||
         r.sch_code?.toLowerCase().includes(searchLower)
       )
@@ -165,11 +112,25 @@ export default function SchoolStudentsListPage() {
     }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (
       window.confirm("Are you sure you want to delete this student record?")
     ) {
-      setRows((prev) => prev.filter((r) => r.id !== id))
+      try {
+        const response = await fetch(`/api/tees/${id}`, {
+          method: "DELETE",
+        })
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as { error?: string }
+          throw new Error(errorData.error || "Failed to delete TEE student")
+        }
+
+        setRows((prev) => prev.filter((r) => r.id !== id))
+      } catch (error) {
+        console.error(error)
+        alert("Failed to delete TEE student")
+      }
     }
   }
 
@@ -195,7 +156,7 @@ export default function SchoolStudentsListPage() {
   return (
     <div>
       <SettingsButtons />
-      <PageBreadcrumb pageTitle="School Students" />
+      <PageBreadcrumb pageTitle="TEES Students" />
 
       <div className="rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
         {/* Header with Search and Add Button */}
@@ -211,7 +172,7 @@ export default function SchoolStudentsListPage() {
           </div>
           <Link href="/school_students/add">
             <Button size="sm" className="whitespace-nowrap">
-              + Add School Student
+              + Add TEES Student
             </Button>
           </Link>
         </div>
@@ -246,6 +207,9 @@ export default function SchoolStudentsListPage() {
                     Name (English)
                     {renderSortIcon("std_name_eng")}
                   </div>
+                </TableCell>
+                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Data Year
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   Name (Burmese)
@@ -293,6 +257,26 @@ export default function SchoolStudentsListPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
+              {loading && (
+                <TableRow>
+                  <TableCell
+                    colSpan={10}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    Loading TEE students...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && currentRows.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={10}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    No TEE students found.
+                  </TableCell>
+                </TableRow>
+              )}
               {currentRows.map((r) => (
                 <TableRow
                   key={r.id}
@@ -303,6 +287,9 @@ export default function SchoolStudentsListPage() {
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
                     {r.std_name_eng}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                    {r.data_year || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
                     {r.std_name_bur}
@@ -317,10 +304,10 @@ export default function SchoolStudentsListPage() {
                     {r.enroll_date}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {r.sex}
+                    {r.sex || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {r.age}
+                    {r.age ?? "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4">
                     <span
@@ -357,8 +344,8 @@ export default function SchoolStudentsListPage() {
         {/* Pagination */}
         <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 dark:border-gray-800 sm:flex-row">
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Showing {startIndex + 1} to {endIndex} of {filteredRows.length}{" "}
-            entries
+            Showing {filteredRows.length === 0 ? 0 : startIndex + 1} to{" "}
+            {endIndex} of {filteredRows.length} entries
           </p>
           <div className="flex items-center gap-2">
             <Button

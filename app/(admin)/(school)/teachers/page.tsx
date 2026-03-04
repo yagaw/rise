@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useMemo } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import SettingsButtons from "@/components/common/SettingsButtons"
 import Link from "next/link"
@@ -14,64 +14,6 @@ import {
 import { AngleDownIcon, AngleUpIcon, PencilIcon, TrashBinIcon } from "@/icons"
 import Button from "@/components/ui/button/Button"
 
-// Mock data - replace with actual API call
-const mockTeachers: Teacher[] = [
-  {
-    id: "1",
-    teach_id: "T001",
-    teach_name_eng: "Aung Kyaw",
-    teach_name_bur: "အောင်ကျော်",
-    sch_code: "SCH001",
-    sch_name_eng: "Central High School",
-    gender: "Male",
-    yob: 1985,
-    position: "Senior Teacher",
-    status: "stay",
-    edu_level: "Bachelor's Degree",
-    teach_exp_year: 15,
-    english: true,
-    math: true,
-    grade_9: true,
-    grade_10: true,
-  },
-  {
-    id: "2",
-    teach_id: "T002",
-    teach_name_eng: "Hnin Wai",
-    teach_name_bur: "နှင်းဝေ",
-    sch_code: "SCH002",
-    sch_name_eng: "Riverside Primary School",
-    gender: "Female",
-    yob: 1990,
-    position: "Teacher",
-    status: "stay",
-    edu_level: "Master's Degree",
-    teach_exp_year: 10,
-    burmese: true,
-    history: true,
-    grade_7: true,
-    grade_8: true,
-  },
-  {
-    id: "3",
-    teach_id: "T003",
-    teach_name_eng: "Zaw Min",
-    teach_name_bur: "ဇော်မင်း",
-    sch_code: "SCH001",
-    sch_name_eng: "Central High School",
-    gender: "Male",
-    yob: 1988,
-    position: "Head Teacher",
-    status: "stay",
-    edu_level: "Master's Degree",
-    teach_exp_year: 12,
-    science: true,
-    phy: true,
-    grade_11: true,
-    grade_12: true,
-  },
-]
-
 type SortField = keyof Teacher
 type SortDirection = "asc" | "desc"
 
@@ -81,7 +23,8 @@ interface SortConfig {
 }
 
 export default function TeachersPage() {
-  const [teachers, setTeachers] = useState<Teacher[]>(mockTeachers)
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -89,6 +32,28 @@ export default function TeachersPage() {
     direction: "asc",
   })
   const itemsPerPage = 10
+
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      try {
+        const response = await fetch("/api/teachers")
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch teachers")
+        }
+
+        const data = (await response.json()) as Teacher[]
+        setTeachers(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load teachers")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTeachers()
+  }, [])
 
   // Sort function
   const handleSort = (field: SortField) => {
@@ -105,6 +70,7 @@ export default function TeachersPage() {
       const searchLower = searchTerm.toLowerCase()
       return (
         teacher.teach_id?.toLowerCase().includes(searchLower) ||
+        teacher.data_year?.toLowerCase().includes(searchLower) ||
         teacher.teach_name_eng?.toLowerCase().includes(searchLower) ||
         teacher.teach_name_bur?.toLowerCase().includes(searchLower) ||
         teacher.sch_name_eng?.toLowerCase().includes(searchLower) ||
@@ -146,10 +112,22 @@ export default function TeachersPage() {
     }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this teacher?")) {
-      setTeachers(teachers.filter((teacher) => teacher.id !== id))
-      // TODO: Add API call to delete teacher
+      try {
+        const response = await fetch(`/api/teachers/${id}`, {
+          method: "DELETE",
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to delete teacher")
+        }
+
+        setTeachers((prev) => prev.filter((teacher) => teacher.id !== id))
+      } catch (error) {
+        console.error(error)
+        alert("Failed to delete teacher")
+      }
     }
   }
 
@@ -235,6 +213,9 @@ export default function TeachersPage() {
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Data Year
+                </TableCell>
+                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   Teacher Name (Burmese)
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -270,75 +251,99 @@ export default function TeachersPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {currentTeachers.map((teacher) => (
-                <TableRow
-                  key={teacher.id}
-                  className="transition hover:bg-gray-50 dark:hover:bg-gray-900"
-                >
-                  <TableCell className="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
-                    {teacher.teach_id}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {teacher.teach_name_eng}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {teacher.teach_name_bur}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    <div>
-                      <div>{teacher.sch_name_eng}</div>
-                      <div className="text-xs text-gray-500">
-                        {teacher.sch_code}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {teacher.gender}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {calculateAge(teacher.yob)}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {teacher.position}
-                  </TableCell>
-                  <TableCell className="px-5 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        teacher.status === "stay"
-                          ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
-                          : teacher.status === "new"
-                            ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
-                            : teacher.status === "transfer_from" ||
-                                teacher.status === "transfer_to"
-                              ? "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
-                              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      {teacher.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {teacher.teach_exp_year
-                      ? `${teacher.teach_exp_year} years`
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <Link href={`/teachers/edit/${teacher.id}`}>
-                        <button className="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-500">
-                          <PencilIcon />
-                        </button>
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(teacher.id)}
-                        className="text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-500"
-                      >
-                        <TrashBinIcon />
-                      </button>
-                    </div>
+              {loading && (
+                <TableRow>
+                  <TableCell
+                    colSpan={11}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    Loading teachers...
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
+              {!loading && currentTeachers.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={11}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    No teachers found.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading &&
+                currentTeachers.map((teacher) => (
+                  <TableRow
+                    key={teacher.id}
+                    className="transition hover:bg-gray-50 dark:hover:bg-gray-900"
+                  >
+                    <TableCell className="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
+                      {teacher.teach_id}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {teacher.teach_name_eng}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {teacher.data_year || "-"}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {teacher.teach_name_bur}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      <div>
+                        <div>{teacher.sch_name_eng}</div>
+                        <div className="text-xs text-gray-500">
+                          {teacher.sch_code}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {teacher.gender}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {calculateAge(teacher.yob)}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {teacher.position}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          teacher.status === "stay"
+                            ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
+                            : teacher.status === "new"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
+                              : teacher.status === "transfer_from" ||
+                                  teacher.status === "transfer_to"
+                                ? "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
+                                : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                        }`}
+                      >
+                        {teacher.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {teacher.teach_exp_year
+                        ? `${teacher.teach_exp_year} years`
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <Link href={`/teachers/edit/${teacher.id}`}>
+                          <button className="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-500">
+                            <PencilIcon />
+                          </button>
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(teacher.id)}
+                          className="text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-500"
+                        >
+                          <TrashBinIcon />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -346,8 +351,8 @@ export default function TeachersPage() {
         {/* Pagination */}
         <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 dark:border-gray-800 sm:flex-row">
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Showing {startIndex + 1} to {endIndex} of {filteredTeachers.length}{" "}
-            entries
+            Showing {filteredTeachers.length ? startIndex + 1 : 0} to {endIndex}{" "}
+            of {filteredTeachers.length} entries
           </p>
           <div className="flex items-center gap-2">
             <Button

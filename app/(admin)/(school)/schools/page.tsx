@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useMemo } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import SettingsButtons from "@/components/common/SettingsButtons"
 import Link from "next/link"
@@ -14,55 +14,6 @@ import {
 import { AngleDownIcon, AngleUpIcon, PencilIcon, TrashBinIcon } from "@/icons"
 import Button from "@/components/ui/button/Button"
 
-// Mock data - replace with actual API call
-const mockSchools: School[] = [
-  {
-    id: "1",
-    sch_code: "SCH001",
-    sch_name_eng: "Central High School",
-    sch_name_bur: "ဗဟိုအထက်တန်းကျောင်း",
-    sr_eng_mimu: "Yangon",
-    dist_eng_mimu: "Yangon East",
-    ts_eng_mimu: "Dagon",
-    sch_status: "Active",
-    sch_type: "Government",
-    sch_estd_year: 1990,
-    stu_female_tt: 250,
-    stu_male_tt: 280,
-    joined_rise: true,
-  },
-  {
-    id: "2",
-    sch_code: "SCH002",
-    sch_name_eng: "Riverside Primary School",
-    sch_name_bur: "မြစ်ကမ်းစာကျောင်း",
-    sr_eng_mimu: "Mandalay",
-    dist_eng_mimu: "Mandalay",
-    ts_eng_mimu: "Aung Myay Thar Zan",
-    sch_status: "Active",
-    sch_type: "Private",
-    sch_estd_year: 2005,
-    stu_female_tt: 150,
-    stu_male_tt: 170,
-    joined_rise: true,
-  },
-  {
-    id: "3",
-    sch_code: "SCH003",
-    sch_name_eng: "Mountain View School",
-    sch_name_bur: "တောင်မြင်ကွင်းကျောင်း",
-    sr_eng_mimu: "Shan",
-    dist_eng_mimu: "Taunggyi",
-    ts_eng_mimu: "Taunggyi",
-    sch_status: "Active",
-    sch_type: "Government",
-    sch_estd_year: 1985,
-    stu_female_tt: 180,
-    stu_male_tt: 200,
-    joined_rise: false,
-  },
-]
-
 type SortField = keyof School
 type SortDirection = "asc" | "desc"
 
@@ -72,7 +23,8 @@ interface SortConfig {
 }
 
 export default function SchoolsPage() {
-  const [schools, setSchools] = useState<School[]>(mockSchools)
+  const [schools, setSchools] = useState<School[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -80,6 +32,28 @@ export default function SchoolsPage() {
     direction: "asc",
   })
   const itemsPerPage = 10
+
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const response = await fetch("/api/schools")
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch schools")
+        }
+
+        const data = (await response.json()) as School[]
+        setSchools(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load schools")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSchools()
+  }, [])
 
   // Sort function
   const handleSort = (field: SortField) => {
@@ -96,6 +70,7 @@ export default function SchoolsPage() {
       const searchLower = searchTerm.toLowerCase()
       return (
         school.sch_code?.toLowerCase().includes(searchLower) ||
+        school.data_year?.toLowerCase().includes(searchLower) ||
         school.sch_name_eng?.toLowerCase().includes(searchLower) ||
         school.sch_name_bur?.toLowerCase().includes(searchLower) ||
         school.dist_eng_mimu?.toLowerCase().includes(searchLower) ||
@@ -137,10 +112,22 @@ export default function SchoolsPage() {
     }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this school?")) {
-      setSchools(schools.filter((school) => school.id !== id))
-      // TODO: Add API call to delete school
+      try {
+        const response = await fetch(`/api/schools/${id}`, {
+          method: "DELETE",
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to delete school")
+        }
+
+        setSchools((prev) => prev.filter((school) => school.id !== id))
+      } catch (error) {
+        console.error(error)
+        alert("Failed to delete school")
+      }
     }
   }
 
@@ -221,6 +208,9 @@ export default function SchoolsPage() {
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Data Year
+                </TableCell>
+                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   School Name (Burmese)
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -266,60 +256,84 @@ export default function SchoolsPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {currentSchools.map((school) => (
-                <TableRow
-                  key={school.id}
-                  className="transition hover:bg-gray-50 dark:hover:bg-gray-900"
-                >
-                  <TableCell className="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
-                    {school.sch_code}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {school.sch_name_eng}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {school.sch_name_bur}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {school.sr_eng_mimu}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {school.dist_eng_mimu}
-                  </TableCell>
-                  <TableCell className="px-5 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        school.sch_status === "Active"
-                          ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      {school.sch_status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {school.sch_type}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {(school.stu_female_tt || 0) + (school.stu_male_tt || 0)}
-                  </TableCell>
-                  <TableCell className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <Link href={`/schools/edit/${school.id}`}>
-                        <button className="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-500">
-                          <PencilIcon />
-                        </button>
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(school.id)}
-                        className="text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-500"
-                      >
-                        <TrashBinIcon />
-                      </button>
-                    </div>
+              {loading && (
+                <TableRow>
+                  <TableCell
+                    colSpan={10}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    Loading schools...
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
+              {!loading && currentSchools.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={10}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    No schools found.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading &&
+                currentSchools.map((school) => (
+                  <TableRow
+                    key={school.id}
+                    className="transition hover:bg-gray-50 dark:hover:bg-gray-900"
+                  >
+                    <TableCell className="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
+                      {school.sch_code}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {school.sch_name_eng}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {school.data_year || "-"}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {school.sch_name_bur}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {school.sr_eng_mimu}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {school.dist_eng_mimu}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          school.sch_status === "Active"
+                            ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
+                            : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                        }`}
+                      >
+                        {school.sch_status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {school.sch_type}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                      {(school.stu_female_tt || 0) + (school.stu_male_tt || 0)}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <Link href={`/schools/edit/${school.id}`}>
+                          <button className="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-500">
+                            <PencilIcon />
+                          </button>
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(school.id)}
+                          className="text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-500"
+                        >
+                          <TrashBinIcon />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -327,8 +341,8 @@ export default function SchoolsPage() {
         {/* Pagination */}
         <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 dark:border-gray-800 sm:flex-row">
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Showing {startIndex + 1} to {endIndex} of {filteredSchools.length}{" "}
-            entries
+            Showing {filteredSchools.length ? startIndex + 1 : 0} to {endIndex}{" "}
+            of {filteredSchools.length} entries
           </p>
           <div className="flex items-center gap-2">
             <Button

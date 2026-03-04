@@ -47,6 +47,11 @@ const navItems: NavItem[] = [
     path: "/schools",
   },
   {
+    icon: <BoxCubeIcon />,
+    name: "School QLE",
+    path: "/school-qle",
+  },
+  {
     icon: <UserCircleIcon />,
     name: "Teachers",
     path: "/teachers",
@@ -58,8 +63,22 @@ const navItems: NavItem[] = [
   },
   {
     icon: <UserCircleIcon />,
-    name: "School Students",
+    name: "TEES Students",
     path: "/school_students",
+  },
+  {
+    icon: <HorizontaLDots />,
+    name: "Master Data",
+    subItems: [
+      { name: "Overview", path: "/master-data" },
+      { name: "State/Region", path: "/state_region" },
+      { name: "Townships", path: "/ts_mimu" },
+      { name: "Subjects", path: "/subjects" },
+      { name: "Teacher Types", path: "/teach_types" },
+      { name: "Teacher Status", path: "/teacher_status" },
+      { name: "Teacher Positions", path: "/techer_position" },
+      { name: "Data Year", path: "/data_year" },
+    ],
   },
   // {
   //   name: "AI Assistant",

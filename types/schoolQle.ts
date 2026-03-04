@@ -1,0 +1,30 @@
+export interface SchoolQle {
+  id: string
+  created_at?: string
+  data_year?: string
+  org?: string
+  sch_code?: string
+  sch_name_eng?: string
+  sr_eng_minu?: string
+  ts_eng_mimu?: string
+  sch_type?: string
+  a?: number
+  b?: number
+  c?: number
+  d?: number
+  e?: number
+  f?: number
+  g?: number
+  h?: number
+  i?: number
+  j?: number
+  k?: number
+  l?: number
+  m?: number
+  n?: number
+  o?: number
+  p?: number
+  q?: number
+  r?: number
+  s?: number
+}

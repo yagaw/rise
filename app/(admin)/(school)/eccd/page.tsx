@@ -1,8 +1,9 @@
 "use client"
-import React, { useState, useMemo } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import SettingsButtons from "@/components/common/SettingsButtons"
 import Link from "next/link"
+import { EccdStudent } from "@/types/eccdStudent"
 import {
   Table,
   TableBody,
@@ -13,43 +14,7 @@ import {
 import { AngleDownIcon, AngleUpIcon, PencilIcon, TrashBinIcon } from "@/icons"
 import Button from "@/components/ui/button/Button"
 
-type Eccd = {
-  id: string
-  org: string
-  sch_code: string
-  sch_status?: string
-  sch_name_eng?: string
-  sr_eng_mimu?: string
-  ts_eng_mimu?: string
-  std_id: string
-  std_name_eng: string
-  std_name_bur?: string
-  enroll_date?: string
-  sex?: string
-  dob?: string
-  remark?: string
-}
-
-const mockRows: Eccd[] = [
-  {
-    id: "e-1",
-    org: "SEE",
-    sch_code: "SEE001",
-    sch_status: "Active",
-    sch_name_eng: "SEE Early Center 1",
-    sr_eng_mimu: "Kachin",
-    ts_eng_mimu: "Falam",
-    std_id: "STD-0001",
-    std_name_eng: "Aung Kyaw",
-    std_name_bur: "အောင်ကျော်",
-    enroll_date: "2025-09-01",
-    sex: "male",
-    dob: "2021-03-10",
-    remark: "Example",
-  },
-]
-
-type SortField = keyof Eccd
+type SortField = keyof EccdStudent
 type SortDirection = "asc" | "desc"
 
 interface SortConfig {
@@ -58,7 +23,8 @@ interface SortConfig {
 }
 
 export default function EccdListPage() {
-  const [rows, setRows] = useState<Eccd[]>(mockRows)
+  const [rows, setRows] = useState<EccdStudent[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -66,6 +32,29 @@ export default function EccdListPage() {
     direction: "asc",
   })
   const itemsPerPage = 10
+
+  useEffect(() => {
+    const fetchEccdStudents = async () => {
+      try {
+        const response = await fetch("/api/eccd")
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as { error?: string }
+          throw new Error(errorData.error || "Failed to fetch ECCD students")
+        }
+
+        const data = (await response.json()) as EccdStudent[]
+        setRows(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load ECCD students")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEccdStudents()
+  }, [])
 
   // Sort function
   const handleSort = (field: SortField) => {
@@ -83,6 +72,7 @@ export default function EccdListPage() {
       return (
         r.std_name_eng?.toLowerCase().includes(searchLower) ||
         r.std_id?.toLowerCase().includes(searchLower) ||
+        r.data_year?.toLowerCase().includes(searchLower) ||
         r.sch_name_eng?.toLowerCase().includes(searchLower) ||
         r.sch_code?.toLowerCase().includes(searchLower)
       )
@@ -122,9 +112,23 @@ export default function EccdListPage() {
     }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this ECCD record?")) {
-      setRows((prev) => prev.filter((r) => r.id !== id))
+      try {
+        const response = await fetch(`/api/eccd/${id}`, {
+          method: "DELETE",
+        })
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as { error?: string }
+          throw new Error(errorData.error || "Failed to delete ECCD student")
+        }
+
+        setRows((prev) => prev.filter((r) => r.id !== id))
+      } catch (error) {
+        console.error(error)
+        alert("Failed to delete ECCD student")
+      }
     }
   }
 
@@ -203,6 +207,9 @@ export default function EccdListPage() {
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Data Year
+                </TableCell>
+                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   Name (Burmese)
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -245,6 +252,26 @@ export default function EccdListPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
+              {loading && (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    Loading ECCD students...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && currentRows.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    No ECCD students found.
+                  </TableCell>
+                </TableRow>
+              )}
               {currentRows.map((r) => (
                 <TableRow
                   key={r.id}
@@ -255,6 +282,9 @@ export default function EccdListPage() {
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
                     {r.std_name_eng}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
+                    {r.data_year || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
                     {r.std_name_bur}
@@ -269,7 +299,7 @@ export default function EccdListPage() {
                     {r.enroll_date}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {r.sex}
+                    {r.sex || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4">
                     <span
@@ -306,8 +336,8 @@ export default function EccdListPage() {
         {/* Pagination */}
         <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 dark:border-gray-800 sm:flex-row">
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Showing {startIndex + 1} to {endIndex} of {filteredRows.length}{" "}
-            entries
+            Showing {filteredRows.length === 0 ? 0 : startIndex + 1} to{" "}
+            {endIndex} of {filteredRows.length} entries
           </p>
           <div className="flex items-center gap-2">
             <Button

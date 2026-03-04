@@ -1,17 +1,17 @@
-import { ChevronDownIcon } from "@/icons";
-import React, { useState } from "react";
+import { ChevronDownIcon } from "@/icons"
+import React, { useState } from "react"
 
 interface Option {
-  value: string;
-  label: string;
+  value: string
+  label: string
 }
 
 interface SelectProps {
-  options: Option[];
-  placeholder?: string;
-  onChange: (value: string) => void;
-  className?: string;
-  defaultValue?: string;
+  options: Option[]
+  placeholder?: string
+  onChange: (value: string) => void
+  className?: string
+  defaultValue?: string | null
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -22,13 +22,17 @@ const Select: React.FC<SelectProps> = ({
   defaultValue = "",
 }) => {
   // Manage the selected value
-  const [selectedValue, setSelectedValue] = useState<string>(defaultValue);
+  const [selectedValue, setSelectedValue] = useState<string>(defaultValue ?? "")
+
+  React.useEffect(() => {
+    setSelectedValue(defaultValue ?? "")
+  }, [defaultValue])
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelectedValue(value);
-    onChange(value); // Trigger parent handler
-  };
+    const value = e.target.value
+    setSelectedValue(value)
+    onChange(value) // Trigger parent handler
+  }
 
   return (
     <div className="relative">
@@ -38,7 +42,7 @@ const Select: React.FC<SelectProps> = ({
             ? "text-gray-800 dark:text-white/90"
             : "text-gray-400 dark:text-gray-400"
         } ${className}`}
-        value={selectedValue}
+        value={selectedValue ?? ""}
         onChange={handleChange}
       >
         {/* Placeholder option */}
@@ -64,7 +68,7 @@ const Select: React.FC<SelectProps> = ({
         <ChevronDownIcon />
       </span>
     </div>
-  );
-};
+  )
+}
 
-export default Select;
+export default Select

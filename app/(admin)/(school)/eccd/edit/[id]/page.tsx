@@ -2,70 +2,103 @@
 import React, { useState, useEffect } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import { useRouter } from "next/navigation"
+import { EccdStudent } from "@/types/eccdStudent"
+import { DataYear } from "@/types/dataYear"
 import Form from "@/components/form/Form"
 import Label from "@/components/form/Label"
 import Input from "@/components/form/input/InputField"
 import Select from "@/components/form/Select"
 import Button from "@/components/ui/button/Button"
-import TextArea from "@/components/form/input/TextArea"
 
-type EccdForm = {
-  id: string
-  org: string
-  sch_code: string
-  sch_name_eng: string
-  std_id: string
-  std_name_eng: string
-  std_name_bur: string
-  enroll_date: string
-  sex: string
-  dob: string
-  remark: string
-}
-
-// Mock data - replace with actual API call
-const getEccdById = (id: string): EccdForm => {
-  return {
-    id: id,
-    org: "SEE",
-    sch_code: "SEE001",
-    sch_name_eng: "SEE Early Center 1",
-    std_id: "STD-0001",
-    std_name_eng: "Aung Kyaw",
-    std_name_bur: "အောင်ကျော်",
-    enroll_date: "2025-09-01",
-    sex: "male",
-    dob: "2021-03-10",
-    remark: "Example",
-  }
-}
-
-export default function EditEccdPage({ params }: { params: { id: string } }) {
+export default function EditEccdPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = React.use(params)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
-  const [formData, setFormData] = useState<Partial<EccdForm>>({})
+  const [dataYears, setDataYears] = useState<DataYear[]>([])
+  const [formData, setFormData] = useState<Partial<EccdStudent>>({})
   const [loading, setLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    // Fetch ECCD data
-    const eccdData = getEccdById(params.id)
-    setFormData(eccdData)
-    setLoading(false)
-  }, [params.id])
+    const fetchDataYears = async () => {
+      try {
+        const response = await fetch("/api/data_year")
+        if (!response.ok) return
+        const data = (await response.json()) as DataYear[]
+        setDataYears(data)
+      } catch (error) {
+        console.error(error)
+      }
+    }
 
-  const handleInputChange = (field: keyof EccdForm, value: string) => {
+    fetchDataYears()
+  }, [])
+
+  useEffect(() => {
+    const fetchEccdStudent = async () => {
+      try {
+        const response = await fetch(`/api/eccd/${id}`)
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as { error?: string }
+          throw new Error(errorData.error || "Failed to fetch ECCD student")
+        }
+
+        const data = (await response.json()) as EccdStudent
+        setFormData(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load ECCD student")
+        router.push("/eccd")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEccdStudent()
+  }, [id, router])
+
+  const handleInputChange = (
+    field: keyof EccdStudent,
+    value: string | number,
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    // TODO: Add API call to update ECCD student
-    alert("ECCD student updated successfully!")
-    router.push("/eccd")
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`/api/eccd/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string }
+        throw new Error(errorData.error || "Failed to update ECCD student")
+      }
+
+      alert("ECCD student updated successfully!")
+      router.push("/eccd")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to update ECCD student")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -79,7 +112,7 @@ export default function EditEccdPage({ params }: { params: { id: string } }) {
   const tabs = [
     { id: "basic", label: "Basic Information" },
     { id: "school", label: "School Information" },
-    { id: "additional", label: "Additional Details" },
+    { id: "additional", label: "Location & Grade" },
   ]
 
   return (
@@ -146,8 +179,8 @@ export default function EditEccdPage({ params }: { params: { id: string } }) {
                 <Label htmlFor="sex">Gender</Label>
                 <Select
                   options={[
-                    { value: "male", label: "Male" },
-                    { value: "female", label: "Female" },
+                    { value: "Male", label: "Male" },
+                    { value: "Female", label: "Female" },
                   ]}
                   placeholder="Select gender"
                   defaultValue={formData.sex}
@@ -160,7 +193,7 @@ export default function EditEccdPage({ params }: { params: { id: string } }) {
                   id="dob"
                   type="date"
                   placeholder="Enter date of birth"
-                  defaultValue={formData.dob}
+                  defaultValue={formData.dob || ""}
                   onChange={(e) => handleInputChange("dob", e.target.value)}
                 />
               </div>
@@ -170,9 +203,26 @@ export default function EditEccdPage({ params }: { params: { id: string } }) {
                   id="enroll_date"
                   type="date"
                   placeholder="Enter enrollment date"
-                  defaultValue={formData.enroll_date}
+                  defaultValue={formData.enroll_date || ""}
                   onChange={(e) =>
                     handleInputChange("enroll_date", e.target.value)
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="age">Age</Label>
+                <Input
+                  id="age"
+                  type="number"
+                  placeholder="Enter age"
+                  defaultValue={
+                    formData.age === undefined ? "" : String(formData.age)
+                  }
+                  onChange={(e) =>
+                    handleInputChange(
+                      "age",
+                      e.target.value === "" ? "" : Number(e.target.value),
+                    )
                   }
                 />
               </div>
@@ -190,6 +240,18 @@ export default function EditEccdPage({ params }: { params: { id: string } }) {
                   placeholder="Enter organization"
                   defaultValue={formData.org}
                   onChange={(e) => handleInputChange("org", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_year">Data Year</Label>
+                <Select
+                  options={dataYears.map((item) => ({
+                    value: item.id,
+                    label: item.title || item.id,
+                  }))}
+                  placeholder="Select data year"
+                  defaultValue={formData.data_year}
+                  onChange={(value) => handleInputChange("data_year", value)}
                 />
               </div>
               <div>
@@ -216,20 +278,58 @@ export default function EditEccdPage({ params }: { params: { id: string } }) {
                   }
                 />
               </div>
+              <div>
+                <Label htmlFor="sch_status">School Status</Label>
+                <Input
+                  id="sch_status"
+                  type="text"
+                  placeholder="Enter school status"
+                  defaultValue={formData.sch_status}
+                  onChange={(e) =>
+                    handleInputChange("sch_status", e.target.value)
+                  }
+                />
+              </div>
             </div>
           )}
 
           {/* Additional Details Tab */}
           {activeTab === "additional" && (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <Label htmlFor="remark">Remark</Label>
-                <TextArea
-                  id="remark"
-                  placeholder="Enter any additional remarks"
-                  rows={4}
-                  value={formData.remark}
-                  onChange={(value) => handleInputChange("remark", value)}
+                <Label htmlFor="sr_eng_mimu">State/Region (English)</Label>
+                <Input
+                  id="sr_eng_mimu"
+                  type="text"
+                  placeholder="Enter state/region"
+                  defaultValue={formData.sr_eng_mimu}
+                  onChange={(e) =>
+                    handleInputChange("sr_eng_mimu", e.target.value)
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="ts_eng_mimu">Township (English)</Label>
+                <Input
+                  id="ts_eng_mimu"
+                  type="text"
+                  placeholder="Enter township"
+                  defaultValue={formData.ts_eng_mimu}
+                  onChange={(e) =>
+                    handleInputChange("ts_eng_mimu", e.target.value)
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="grade_25_26">Grade (25-26)</Label>
+                <Input
+                  id="grade_25_26"
+                  type="text"
+                  placeholder="Enter grade"
+                  defaultValue={formData.grade_25_26}
+                  onChange={(e) =>
+                    handleInputChange("grade_25_26", e.target.value)
+                  }
                 />
               </div>
             </div>
@@ -240,11 +340,18 @@ export default function EditEccdPage({ params }: { params: { id: string } }) {
             <Button
               type="button"
               variant="outline"
+              disabled={isSubmitting}
               onClick={() => router.push("/eccd")}
             >
               Cancel
             </Button>
-            <Button type="submit">Update ECCD Student</Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              isLoading={isSubmitting}
+            >
+              {isSubmitting ? "Updating..." : "Update ECCD Student"}
+            </Button>
           </div>
         </Form>
       </div>
