@@ -22,6 +22,11 @@ interface SortConfig {
   direction: SortDirection
 }
 
+const toSearchableText = (value: unknown): string => {
+  if (value === undefined || value === null) return ""
+  return String(value).toLowerCase()
+}
+
 export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,12 +74,12 @@ export default function SchoolsPage() {
     let filtered = schools.filter((school) => {
       const searchLower = searchTerm.toLowerCase()
       return (
-        school.sch_code?.toLowerCase().includes(searchLower) ||
-        school.data_year?.toLowerCase().includes(searchLower) ||
-        school.sch_name_eng?.toLowerCase().includes(searchLower) ||
-        school.sch_name_bur?.toLowerCase().includes(searchLower) ||
-        school.dist_eng_mimu?.toLowerCase().includes(searchLower) ||
-        school.sr_eng_mimu?.toLowerCase().includes(searchLower)
+        toSearchableText(school.sch_code).includes(searchLower) ||
+        toSearchableText(school.data_year).includes(searchLower) ||
+        toSearchableText(school.sch_name_eng).includes(searchLower) ||
+        toSearchableText(school.sch_name_bur).includes(searchLower) ||
+        toSearchableText(school.dist_eng_mimu).includes(searchLower) ||
+        toSearchableText(school.sr_eng_mimu).includes(searchLower)
       )
     })
 

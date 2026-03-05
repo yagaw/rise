@@ -37,10 +37,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const allowNullImport =
+    new URL(request.url).searchParams.get("allow_null_import") === "1"
   const body = (await request.json()) as Partial<EccdStudent>
   let payload = sanitizeEccdPayload(body)
 
-  if (!hasEccdRequiredFields(payload)) {
+  if (!allowNullImport && !hasEccdRequiredFields(payload)) {
     return NextResponse.json(
       { error: "Student ID and Student Name (English) are required." },
       { status: 400 },

@@ -1,9 +1,7 @@
 "use client"
 import { createSupabaseBrowserClient } from "@/lib/supabase/client"
-import Image from "next/image"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { Dropdown } from "../ui/dropdown/Dropdown"
 import { DropdownItem } from "../ui/dropdown/DropdownItem"
 
@@ -11,6 +9,18 @@ export default function UserDropdown() {
   const router = useRouter()
   const supabase = useMemo(() => createSupabaseBrowserClient(), [])
   const [isOpen, setIsOpen] = useState(false)
+  const [userEmail, setUserEmail] = useState("")
+
+  useEffect(() => {
+    const loadUserEmail = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      setUserEmail(user?.email ?? "")
+    }
+
+    loadUserEmail()
+  }, [supabase])
 
   function toggleDropdown() {
     setIsOpen(!isOpen)
@@ -22,27 +32,27 @@ export default function UserDropdown() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
+    setUserEmail("")
     closeDropdown()
     router.push("/signin")
     router.refresh()
   }
 
+  const emailInitial = (userEmail.trim().charAt(0) || "U").toUpperCase()
+
   return (
     <div className="relative">
       <button
         onClick={toggleDropdown}
+        aria-label={`User menu ${userEmail || "No email"}`}
         className="flex items-center dropdown-toggle text-gray-700 dark:text-gray-400 dropdown-toggle"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <Image
-            width={44}
-            height={44}
-            src="/images/user/owner.png"
-            alt="User"
-          />
+        <span
+          className="mr-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700 dark:bg-brand-900/40 dark:text-brand-400"
+          aria-hidden="true"
+        >
+          {emailInitial}
         </span>
-
-        <span className="block mr-1 font-medium text-theme-sm">Musharof</span>
 
         <svg
           className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
@@ -70,11 +80,8 @@ export default function UserDropdown() {
         className="absolute right-0 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
       >
         <div>
-          <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            Musharof Chowdhury
-          </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            randomuser@pimjo.com
+            {userEmail || "No email"}
           </span>
         </div>
 

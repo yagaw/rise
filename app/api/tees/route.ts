@@ -29,10 +29,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient()
+  const allowNullImport =
+    new URL(request.url).searchParams.get("allow_null_import") === "1"
   const payload = (await request.json()) as Partial<TeesStudent>
   let sanitizedPayload = mapTeesToDatabase(sanitizeTeesPayload(payload))
 
-  if (!hasTeesRequiredFields(payload)) {
+  if (!allowNullImport && !hasTeesRequiredFields(payload)) {
     return NextResponse.json(
       { error: "Student ID and Student Name (English) are required." },
       { status: 400 },
