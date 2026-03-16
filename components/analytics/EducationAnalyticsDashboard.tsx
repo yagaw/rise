@@ -2,7 +2,6 @@
 import React, { useMemo, useState } from "react"
 import AnalyticsMetrics from "./AnalyticsMetrics"
 import { getOrganizationScopedData, organizations } from "@/data/education"
-import SettingsButtons from "@/components/common/SettingsButtons"
 
 type MetricItem = {
   id: number
@@ -69,29 +68,54 @@ export default function EducationAnalyticsDashboard() {
 
   return (
     <div className="col-span-12">
-      <div className="mb-4 flex items-center gap-3">
-        <label
-          htmlFor="orgSelect"
-          className="text-theme-sm text-gray-600 dark:text-gray-300"
-        >
-          Organization
-        </label>
-        <select
-          id="orgSelect"
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-          value={organizationId}
-          onChange={(e) => setOrganizationId(e.target.value)}
-        >
-          <option value="all">All organizations</option>
-          {organizations.map((org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-white/90">
+            Education Overview
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Track key metrics across your education network
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <label
+            htmlFor="orgSelect"
+            className="text-theme-sm text-gray-500 dark:text-gray-400"
+          >
+            Filter by
+          </label>
+          <div className="relative">
+            <select
+              id="orgSelect"
+              className="appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-4 pr-10 text-sm text-gray-700 shadow-theme-xs transition-colors focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-brand-800"
+              value={organizationId}
+              onChange={(e) => setOrganizationId(e.target.value)}
+            >
+              <option value="all">All Organizations</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+              <svg
+                className="h-4 w-4 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </span>
+          </div>
+        </div>
       </div>
-
-      <SettingsButtons />
 
       <AnalyticsMetrics items={metrics} />
     </div>

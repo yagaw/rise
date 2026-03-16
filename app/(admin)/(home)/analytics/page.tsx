@@ -10,33 +10,50 @@ import { Metadata } from "next"
 import React from "react"
 
 export const metadata: Metadata = {
-  title: "Next.js Analytics Dashboard | TailAdmin - Next.js Dashboard Template",
+  title: "Analytics Dashboard | RISE Education Management",
   description:
-    "This is Next.js Analytics Dashboard page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+    "Education analytics dashboard - Schools, Teachers, Students overview",
 }
 
 export default function Analytics() {
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
       <EducationAnalyticsDashboard />
-      <div className="col-span-12">
+
+      <div
+        className="col-span-12 animate-card-enter"
+        style={{ animationDelay: "100ms" }}
+      >
         <AnalyticsBarChart />
       </div>
-      <div className="col-span-12 xl:col-span-7">
+
+      <div
+        className="col-span-12 xl:col-span-7 animate-card-enter"
+        style={{ animationDelay: "200ms" }}
+      >
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <StudentGenderSessionChart />
           <TeacherGenderSessionChart />
         </div>
       </div>
 
-      <div className="col-span-12 xl:col-span-7">
+      <div
+        className="col-span-12 xl:col-span-7 animate-card-enter"
+        style={{ animationDelay: "300ms" }}
+      >
         <StudentsByGradeChart />
       </div>
-      <div className="col-span-12 xl:col-span-5">
+      <div
+        className="col-span-12 xl:col-span-5 animate-card-enter"
+        style={{ animationDelay: "350ms" }}
+      >
         <TeachersBySubjectChart />
       </div>
 
-      <div className="col-span-12">
+      <div
+        className="col-span-12 animate-card-enter"
+        style={{ animationDelay: "400ms" }}
+      >
         <TopSchoolsByEnrollment />
       </div>
     </div>

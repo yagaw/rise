@@ -57,7 +57,9 @@ export default function AdminLayout({
         {/* Header */}
         <AppHeader />
         {/* Page Content */}
-        <div className={getRouteSpecificStyles()}>{children}</div>
+        <div className={`${getRouteSpecificStyles()} animate-page-enter`}>
+          {children}
+        </div>
       </div>
     </div>
   )
