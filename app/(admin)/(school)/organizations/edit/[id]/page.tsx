@@ -10,150 +10,82 @@ import Input from "@/components/form/input/InputField"
 import TextArea from "@/components/form/input/TextArea"
 import { Organization } from "@/types/organization"
 
-// Mock function to get organization by ID
-const getOrganizationById = (id: string): Organization | null => {
-  const mockOrganizations: Organization[] = [
-    {
-      id: "SEE",
-      name: "SEE",
-      longname: "Save the Earth and Education",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "STF",
-      name: "STF",
-      longname: "Save the Future",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "KTWG",
-      name: "KTWG",
-      longname: "Karen Teacher Working Group",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "SENG",
-      name: "SENG",
-      longname: "SENG Organization",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "TEI",
-      name: "TEI",
-      longname: "Teacher Education Initiative",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "CDN",
-      name: "CDN",
-      longname: "Community Development Network",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "BF",
-      name: "BF",
-      longname: "Border Foundation",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "CRED",
-      name: "CRED",
-      longname: "Community Resource and Education Development",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "DDI",
-      name: "DDI",
-      longname: "Development and Democracy Initiative",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "ENDO",
-      name: "ENDO",
-      longname: "Education Network Development Organization",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "LHM",
-      name: "LHM",
-      longname: "Learning and Hope Mission",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "LDN",
-      name: "LDN",
-      longname: "Learning and Development Network",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "TSYU",
-      name: "TSYU",
-      longname: "Teacher Support and Youth Upliftment",
-      remark: "Education organization",
-      created_at: new Date().toISOString(),
-    },
-  ]
-
-  return mockOrganizations.find((org) => org.id === id) || null
-}
-
 export default function EditOrganizationPage() {
   const router = useRouter()
   const params = useParams()
   const organizationId = params.id as string
 
   const [formData, setFormData] = useState<Partial<Organization>>({
-    name: "",
-    longname: "",
+    title: "",
+    short_title: "",
+    type: "",
+    ethnicity: "",
     remark: "",
   })
   const [remarkValue, setRemarkValue] = useState("")
   const [loading, setLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    // TODO: Replace with actual API call
-    const organization = getOrganizationById(organizationId)
-    if (organization) {
-      setFormData({
-        name: organization.name || "",
-        longname: organization.longname || "",
-        remark: organization.remark || "",
-      })
-      setRemarkValue(organization.remark || "")
+    const fetchOrganization = async () => {
+      try {
+        const response = await fetch(`/api/organizations/${organizationId}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to load organization")
+        }
+
+        const organization = (await response.json()) as Organization
+        setFormData({
+          title: organization.title || "",
+          short_title: organization.short_title || "",
+          type: organization.type || "",
+          ethnicity: organization.ethnicity || "",
+          remark: organization.remark || "",
+        })
+        setRemarkValue(organization.remark || "")
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load organization")
+        router.push("/organizations")
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
-  }, [organizationId])
+
+    fetchOrganization()
+  }, [organizationId, router])
 
   const handleInputChange = (field: keyof Organization, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // TODO: Replace with actual API call
-    const updatedOrganization: Organization = {
-      id: organizationId,
-      created_at: new Date().toISOString(),
-      ...formData,
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/organizations/${organizationId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string }
+        throw new Error(errorData.error || "Failed to update organization")
+      }
+
+      alert("Organization updated successfully!")
+      router.push("/organizations")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to update organization")
+    } finally {
+      setIsSubmitting(false)
     }
-
-    console.log("Updating organization:", updatedOrganization)
-
-    // Redirect to organizations list
-    router.push("/organizations")
   }
 
   const handleCancel = () => {
@@ -162,10 +94,10 @@ export default function EditOrganizationPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="flex h-96 items-center justify-center">
+        <div className="inline-flex items-center gap-3 text-gray-500 dark:text-gray-400">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-700 dark:border-t-blue-400" />
+          <p>Loading organization details...</p>
         </div>
       </div>
     )
@@ -181,38 +113,83 @@ export default function EditOrganizationPage() {
             Edit Organization
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Update organization information
+            Update organization information in Supabase
           </p>
         </div>
 
         <Form onSubmit={handleSubmit}>
           <div className="space-y-6">
-            {/* Basic Information */}
+            {isSubmitting && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/60 dark:bg-blue-900/20 dark:text-blue-300">
+                Saving organization changes...
+              </div>
+            )}
             <div className="rounded-lg border border-gray-200 p-6 dark:border-gray-800">
               <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                Basic Information
+                Organization Fields
               </h2>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <Label htmlFor="name">Name *</Label>
+                  <Label htmlFor="id">ID</Label>
                   <Input
-                    id="name"
+                    id="id"
                     type="text"
-                    placeholder="Enter organization name"
-                    defaultValue={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    defaultValue={organizationId}
+                    disabled
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="longname">Long Name</Label>
+                  <Label htmlFor="title">Title *</Label>
                   <Input
-                    id="longname"
+                    id="title"
                     type="text"
-                    placeholder="Enter full organization name"
-                    defaultValue={formData.longname}
+                    placeholder="Enter organization title"
+                    defaultValue={formData.title}
+                    disabled={isSubmitting}
+                    onChange={(e) => handleInputChange("title", e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="short_title">Short Title</Label>
+                  <Input
+                    id="short_title"
+                    type="text"
+                    placeholder="Enter short title"
+                    defaultValue={formData.short_title}
+                    disabled={isSubmitting}
                     onChange={(e) =>
-                      handleInputChange("longname", e.target.value)
+                      handleInputChange("short_title", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="type">Type</Label>
+                  <select
+                    id="type"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white dark:bg-gray-800"
+                    disabled={isSubmitting}
+                    value={formData.type ?? ""}
+                    onChange={(e) => handleInputChange("type", e.target.value)}
+                  >
+                    <option value="">Select type</option>
+                    <option value="Member">Member</option>
+                    <option value="Strategic partner">Strategic partner</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="ethnicity">Ethnicity</Label>
+                  <Input
+                    id="ethnicity"
+                    type="text"
+                    placeholder="Enter ethnicity"
+                    defaultValue={formData.ethnicity}
+                    disabled={isSubmitting}
+                    onChange={(e) =>
+                      handleInputChange("ethnicity", e.target.value)
                     }
                   />
                 </div>
@@ -220,9 +197,11 @@ export default function EditOrganizationPage() {
                 <div className="md:col-span-2">
                   <Label htmlFor="remark">Remark</Label>
                   <TextArea
+                    id="remark"
                     placeholder="Enter any additional remarks"
                     rows={4}
                     value={remarkValue}
+                    disabled={isSubmitting}
                     onChange={(value) => {
                       setRemarkValue(value)
                       handleInputChange("remark", value)
@@ -232,12 +211,24 @@ export default function EditOrganizationPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex justify-end gap-3">
-              <Button onClick={handleCancel} variant="outline">
+              <Button
+                onClick={handleCancel}
+                variant="outline"
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
-              <Button>Update Organization</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                    Saving...
+                  </span>
+                ) : (
+                  "Update Organization"
+                )}
+              </Button>
             </div>
           </div>
         </Form>

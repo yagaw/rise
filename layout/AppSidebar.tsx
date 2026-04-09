@@ -36,11 +36,7 @@ const navItems: NavItem[] = [
       // { name: "Logistics", path: "/logistics", new: true },
     ],
   },
-  {
-    icon: <GroupIcon />,
-    name: "Organizations",
-    path: "/organizations",
-  },
+  // Organizations moved into Master Data submenu
   {
     icon: <BoxCubeIcon />,
     name: "Schools",
@@ -71,6 +67,7 @@ const navItems: NavItem[] = [
     name: "Master Data",
     subItems: [
       { name: "Overview", path: "/master-data" },
+      { name: "Organizations", path: "/organizations" },
       { name: "State/Region", path: "/state_region" },
       { name: "Townships", path: "/ts_mimu" },
       { name: "Subjects", path: "/subjects" },

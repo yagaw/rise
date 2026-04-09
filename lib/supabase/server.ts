@@ -8,6 +8,8 @@ export const schoolQleTable =
 export const eccdTable = process.env.SUPABASE_ECCD_TABLE || "eccd_ease"
 export const teesTable = process.env.SUPABASE_TEES_TABLE || "tees_ease"
 export const dataYearTable = process.env.SUPABASE_DATA_YEAR_TABLE || "data_year"
+export const organizationsTable =
+  process.env.SUPABASE_ORGANIZATIONS_TABLE || "organization"
 
 export const createSupabaseServerClient = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
