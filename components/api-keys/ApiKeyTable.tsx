@@ -81,9 +81,6 @@ export default function ApiKeyTable() {
                 Status
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                Created
-              </th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                 Last used
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -202,9 +199,6 @@ export default function ApiKeyTable() {
                   >
                     {apiKey.status}
                   </span>
-                </td>
-                <td className="px-5 py-3 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
-                  {apiKey.created}
                 </td>
                 <td className="px-5 py-3 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
                   {apiKey.lastUsed}

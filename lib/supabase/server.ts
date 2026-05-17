@@ -11,6 +11,7 @@ export const teesTable = process.env.SUPABASE_TEES_TABLE || "tees_ease"
 export const dataYearTable = process.env.SUPABASE_DATA_YEAR_TABLE || "data_year"
 export const organizationsTable =
   process.env.SUPABASE_ORGANIZATIONS_TABLE || "organization"
+export const techerPositionTable = "techer_position"
 
 export const createSupabaseServerClient = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

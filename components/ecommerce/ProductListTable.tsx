@@ -682,9 +682,6 @@ const ProductListTable: React.FC = () => {
                 Stock
               </th>
               <th className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                Created At
-              </th>
-              <th className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                 <div className="relative">
                   <span className="sr-only">Action</span>
                 </div>
@@ -777,11 +774,6 @@ const ProductListTable: React.FC = () => {
                   >
                     {product.stock}
                   </span>
-                </td>
-                <td className="px-5 py-4 whitespace-nowrap">
-                  <p className="text-sm text-gray-700 dark:text-gray-400">
-                    {product.createdAt}
-                  </p>
                 </td>
                 <td className="px-5 py-4 whitespace-nowrap"></td>
               </tr>

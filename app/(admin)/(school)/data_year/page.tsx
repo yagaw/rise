@@ -187,9 +187,6 @@ export default function DataYearPage() {
                   Remark
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Created
-                </TableCell>
-                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   Actions
                 </TableCell>
               </TableRow>
@@ -198,7 +195,7 @@ export default function DataYearPage() {
               {loading && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={5}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     Loading Data Year records...
@@ -208,7 +205,7 @@ export default function DataYearPage() {
               {!loading && currentItems.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={5}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No Data Year records found.
@@ -232,9 +229,6 @@ export default function DataYearPage() {
                     </TableCell>
                     <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
                       {row.remark || "-"}
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                      {row.created_at || "-"}
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <div className="flex items-center gap-2">

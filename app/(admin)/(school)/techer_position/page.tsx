@@ -1,5 +1,5 @@
 "use client"
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import Link from "next/link"
 import {
@@ -20,16 +20,6 @@ interface Position {
   type_myanmar?: string
 }
 
-const mockRows: Position[] = [
-  {
-    id: "1",
-    created_at: "2026-01-19 04:22:36",
-    type_english: "Primary Assistant Teacher (PAT)",
-    type_short: "PAT",
-    type_myanmar: "မူလတန်းပြဆရာ၊မ (PAT)",
-  },
-]
-
 type SortField = keyof Position
 type SortDirection = "asc" | "desc"
 
@@ -39,7 +29,8 @@ interface SortConfig {
 }
 
 export default function TecherPositionPage() {
-  const [rows, setRows] = useState<Position[]>(mockRows)
+  const [rows, setRows] = useState<Position[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -48,26 +39,42 @@ export default function TecherPositionPage() {
   })
   const itemsPerPage = 10
 
+  useEffect(() => {
+    const fetchRows = async () => {
+      try {
+        const response = await fetch("/api/techer_position")
+        if (!response.ok) throw new Error("Failed to fetch Teacher Positions")
+        const data = (await response.json()) as Position[]
+        setRows(data)
+      } catch (error) {
+        console.error(error)
+        alert("Failed to load Teacher Positions")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRows()
+  }, [])
+
   const handleSort = (field: SortField) => {
     setSortConfig((prev) => ({
       field,
-      direction:
-        prev.field === field && prev.direction === "asc" ? "desc" : "asc",
+      direction: prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }))
   }
 
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase()
-    let filtered = rows.filter(
+    const items = rows.filter(
       (r) =>
         r.type_english.toLowerCase().includes(q) ||
         (r.type_short || "").toLowerCase().includes(q) ||
         (r.type_myanmar || "").toLowerCase().includes(q),
     )
     if (sortConfig.field) {
-      filtered.sort((a, b) => {
-        const aV = (a as any)[sortConfig.field!]
-        const bV = (b as any)[sortConfig.field!]
+      items.sort((a, b) => {
+        const aV = (a as unknown as Record<string, unknown>)[sortConfig.field!]
+        const bV = (b as unknown as Record<string, unknown>)[sortConfig.field!]
         if (aV == null) return 1
         if (bV == null) return -1
         if (aV < bV) return sortConfig.direction === "asc" ? -1 : 1
@@ -75,7 +82,7 @@ export default function TecherPositionPage() {
         return 0
       })
     }
-    return filtered
+    return items
   }, [rows, searchTerm, sortConfig])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage))
@@ -83,29 +90,26 @@ export default function TecherPositionPage() {
   const endIndex = Math.min(startIndex + itemsPerPage, filtered.length)
   const currentItems = filtered.slice(startIndex, endIndex)
 
-  const handleDelete = (id: string) => {
-    if (confirm("Delete this position?")) {
-      setRows((s) => s.filter((x) => x.id !== id))
-      // TODO: call API to delete
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this Teacher Position?")) return
+    try {
+      const response = await fetch(`/api/techer_position/${id}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) throw new Error("Failed to delete")
+      setRows((prev) => prev.filter((r) => r.id !== id))
+    } catch (error) {
+      console.error(error)
+      alert("Failed to delete Teacher Position")
     }
   }
 
   const renderSortIcon = (field: SortField) => {
     if (sortConfig.field !== field)
-      return (
-        <span className="ml-1 inline-block text-gray-400">
-          <AngleDownIcon />
-        </span>
-      )
-    return sortConfig.direction === "asc" ? (
-      <span className="ml-1 inline-block">
-        <AngleUpIcon />
-      </span>
-    ) : (
-      <span className="ml-1 inline-block">
-        <AngleDownIcon />
-      </span>
-    )
+      return <span className="ml-1 inline-block text-gray-400"><AngleDownIcon /></span>
+    return sortConfig.direction === "asc"
+      ? <span className="ml-1 inline-block"><AngleUpIcon /></span>
+      : <span className="ml-1 inline-block"><AngleDownIcon /></span>
   }
 
   return (
@@ -118,14 +122,12 @@ export default function TecherPositionPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               type="text"
-              placeholder="Search..."
+              placeholder="Search positions..."
               className="h-10 w-full max-w-md rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
             />
           </div>
           <Link href="/techer_position/add">
-            <Button size="sm" className="whitespace-nowrap">
-              + Add
-            </Button>
+            <Button size="sm" className="whitespace-nowrap">+ Add Position</Button>
           </Link>
         </div>
 
@@ -134,44 +136,40 @@ export default function TecherPositionPage() {
             <TableHeader className="bg-gray-50 dark:bg-gray-900">
               <TableRow className="border-b border-gray-100 dark:border-gray-800">
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  <div
-                    className="flex items-center cursor-pointer"
-                    onClick={() => handleSort("type_english")}
-                  >
+                  <div className="flex items-center cursor-pointer" onClick={() => handleSort("type_english")}>
                     Type (English){renderSortIcon("type_english")}
                   </div>
                 </TableCell>
-                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Short
-                </TableCell>
-                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Type (Myanmar)
-                </TableCell>
-                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Created
-                </TableCell>
-                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Actions
-                </TableCell>
+                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Short</TableCell>
+                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Type (Myanmar)</TableCell>
+                <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Actions</TableCell>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {currentItems.map((r) => (
-                <TableRow
-                  key={r.id}
-                  className="transition hover:bg-gray-50 dark:hover:bg-gray-900"
-                >
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={4} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && currentItems.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No Teacher Positions found.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && currentItems.map((r) => (
+                <TableRow key={r.id} className="transition hover:bg-gray-50 dark:hover:bg-gray-900">
                   <TableCell className="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
                     {r.type_english}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {r.type_short}
+                    {r.type_short || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {r.type_myanmar}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-400">
-                    {r.created_at}
+                    {r.type_myanmar || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4">
                     <div className="flex items-center gap-2">
@@ -196,36 +194,28 @@ export default function TecherPositionPage() {
 
         <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 dark:border-gray-800 sm:flex-row">
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Showing {startIndex + 1} to {endIndex} of {filtered.length} entries
+            Showing {filtered.length === 0 ? 0 : startIndex + 1} to {endIndex} of {filtered.length} entries
           </p>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
+            <Button size="sm" variant="outline" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
               Previous
             </Button>
             <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium ${currentPage === page ? "bg-brand-500 text-white" : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"}`}
-                  >
-                    {page}
-                  </button>
-                ),
-              )}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium ${
+                    currentPage === page
+                      ? "bg-brand-500 text-white"
+                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
+            <Button size="sm" variant="outline" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
               Next
             </Button>
           </div>
