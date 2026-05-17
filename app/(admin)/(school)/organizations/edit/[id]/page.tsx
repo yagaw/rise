@@ -145,7 +145,7 @@ export default function EditOrganizationPage() {
                     id="title"
                     type="text"
                     placeholder="Enter organization title"
-                    defaultValue={formData.title}
+                    defaultValue={formData.title ?? ""}
                     disabled={isSubmitting}
                     onChange={(e) => handleInputChange("title", e.target.value)}
                   />
@@ -157,7 +157,7 @@ export default function EditOrganizationPage() {
                     id="short_title"
                     type="text"
                     placeholder="Enter short title"
-                    defaultValue={formData.short_title}
+                    defaultValue={formData.short_title ?? ""}
                     disabled={isSubmitting}
                     onChange={(e) =>
                       handleInputChange("short_title", e.target.value)
@@ -186,7 +186,7 @@ export default function EditOrganizationPage() {
                     id="ethnicity"
                     type="text"
                     placeholder="Enter ethnicity"
-                    defaultValue={formData.ethnicity}
+                    defaultValue={formData.ethnicity ?? ""}
                     disabled={isSubmitting}
                     onChange={(e) =>
                       handleInputChange("ethnicity", e.target.value)
