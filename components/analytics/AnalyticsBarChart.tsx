@@ -1,9 +1,8 @@
 "use client"
-import React from "react"
+import React, { useState } from "react"
 // import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts"
-import ChartTab from "../common/ChartTab"
-import { organizations, getOrganizationScopedData } from "@/data/education"
+import { useExcelAnalytics } from "./useExcelAnalytics"
 
 import dynamic from "next/dynamic"
 
@@ -12,16 +11,11 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 })
 
 export default function AnalyticsBarChart() {
-  // Get education data for all organizations
-  const organizationData = organizations.map((org) => {
-    const scopedData = getOrganizationScopedData(org.id)
-    return {
-      name: org.name,
-      students: scopedData.students.length,
-      schools: scopedData.schools.length,
-      teachers: scopedData.teachers.length,
-    }
-  })
+  const [organization, setOrganization] = useState("all")
+  const { data, loading } = useExcelAnalytics(organization)
+  const organizationData = data?.charts?.educationByOrganization?.length
+    ? data.charts.educationByOrganization
+    : [{ name: "No data", students: 0, schools: 0, teachers: 0 }]
 
   const options: ApexOptions = {
     colors: ["#465fff", "#7592ff", "#c2d6ff"],
@@ -107,10 +101,24 @@ export default function AnalyticsBarChart() {
             Education Analytics
           </h3>
           <span className="block text-gray-500 text-theme-sm dark:text-gray-400">
-            Students, schools and teachers by organization
+            {loading
+              ? "Loading excel_data..."
+              : "Students, schools and teachers by organization from excel_data"}
           </span>
         </div>
-        <ChartTab />
+        <select
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+          value={organization}
+          onChange={(event) => setOrganization(event.target.value)}
+          disabled={loading}
+        >
+          <option value="all">All organizations</option>
+          {(data?.organizations ?? []).map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="max-w-full overflow-x-auto custom-scrollbar">
         <div className="-ml-5 min-w-[1300px] xl:min-w-full pl-2">

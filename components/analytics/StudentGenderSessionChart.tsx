@@ -1,11 +1,11 @@
 "use client"
-import React, { useMemo, useState } from "react"
+import React, { useState } from "react"
 import { ApexOptions } from "apexcharts"
 import { Dropdown } from "../ui/dropdown/Dropdown"
 import { DropdownItem } from "../ui/dropdown/DropdownItem"
 import { MoreDotIcon } from "@/icons"
-import { organizations, getOrganizationScopedData } from "@/data/education"
 import dynamic from "next/dynamic"
+import { useExcelAnalytics } from "./useExcelAnalytics"
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -13,18 +13,17 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 
 export default function StudentGenderSessionChart() {
   const [isOpen, setIsOpen] = useState(false)
-  const [organizationId, setOrganizationId] = useState<string>("all")
-
-  const scoped = useMemo(
-    () => getOrganizationScopedData(organizationId),
-    [organizationId]
-  )
-  const male = scoped.students.filter((s) => s.gender === "male").length
-  const female = scoped.students.filter((s) => s.gender === "female").length
+  const [organization, setOrganization] = useState("all")
+  const { data, loading } = useExcelAnalytics(organization)
+  const genderCounts = data?.charts?.studentGender ?? {}
+  const labels = Object.keys(genderCounts).length
+    ? Object.keys(genderCounts)
+    : ["Male", "Female"]
+  const series = labels.map((label) => genderCounts[label] ?? 0)
 
   const options: ApexOptions = {
     colors: ["#3641f5", "#dde9ff"],
-    labels: ["Male", "Female"],
+    labels,
     chart: {
       fontFamily: "Outfit, sans-serif",
       type: "donut",
@@ -71,8 +70,6 @@ export default function StudentGenderSessionChart() {
       { breakpoint: 640, options: { chart: { width: 370, height: 290 } } },
     ],
   }
-  const series = [male, female]
-
   function toggleDropdown() {
     setIsOpen(!isOpen)
   }
@@ -89,13 +86,14 @@ export default function StudentGenderSessionChart() {
           </h3>
           <select
             className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-            value={organizationId}
-            onChange={(e) => setOrganizationId(e.target.value)}
+            value={organization}
+            onChange={(event) => setOrganization(event.target.value)}
+            disabled={loading}
           >
             <option value="all">All organizations</option>
-            {organizations.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
+            {(data?.organizations ?? []).map((name) => (
+              <option key={name} value={name}>
+                {name}
               </option>
             ))}
           </select>
@@ -127,7 +125,7 @@ export default function StudentGenderSessionChart() {
       <div>
         <div className="flex justify-center mx-auto" id="chartDarkStyle">
           <ReactApexChart
-            key={`student-${organizationId}-${male}-${female}`}
+            key={`student-${labels.join("-")}-${series.join("-")}`}
             options={options}
             series={series}
             type="donut"

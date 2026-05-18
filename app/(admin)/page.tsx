@@ -1,63 +1,25 @@
-import AnalyticsBarChart from "@/components/analytics/AnalyticsBarChart"
-import StudentGenderSessionChart from "@/components/analytics/StudentGenderSessionChart"
-import TeacherGenderSessionChart from "@/components/analytics/TeacherGenderSessionChart"
-import StudentsByGradeChart from "@/components/analytics/StudentsByGradeChart"
-import TeachersBySubjectChart from "@/components/analytics/TeachersBySubjectChart"
-import TopSchoolsByEnrollment from "@/components/analytics/TopSchoolsByEnrollment"
-import SchoolsByTypeAndRegion from "@/components/analytics/SchoolsByTypeAndRegion"
-import TeacherStatusOverview from "@/components/analytics/TeacherStatusOverview"
-import TeachersByPositionChart from "@/components/analytics/TeachersByPositionChart"
 import { Metadata } from "next"
 import React from "react"
 
 export const metadata: Metadata = {
-  title: "Analytics Dashboard",
-  description: "Overview dashboard for RISE Education Management",
+  title: "Welcome to RISE Database",
+  description: "RISE education database home",
 }
 
-export default function Analytics() {
+export default function HomePage() {
   return (
-    <div className="grid grid-cols-12 gap-4 md:gap-6">
-      {/* Key Metrics (moved to Teachers and Schools pages) */}
-
-      {/* School Analytics */}
-      <div className="col-span-12">
-        <SchoolsByTypeAndRegion />
-      </div>
-
-      <div className="col-span-12">
-        <TopSchoolsByEnrollment />
-      </div>
-
-      {/* Teacher Analytics */}
-      <div className="col-span-12">
-        <TeacherStatusOverview />
-      </div>
-
-      <div className="col-span-12 xl:col-span-7">
-        <TeachersByPositionChart />
-      </div>
-
-      <div className="col-span-12 xl:col-span-5">
-        <TeachersBySubjectChart />
-      </div>
-
-      {/* Gender Distribution */}
-      <div className="col-span-12 xl:col-span-7">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <StudentGenderSessionChart />
-          <TeacherGenderSessionChart />
-        </div>
-      </div>
-
-      {/* Student Analytics */}
-      <div className="col-span-12 xl:col-span-7">
-        <StudentsByGradeChart />
-      </div>
-
-      {/* Overall Analytics Bar Chart */}
-      <div className="col-span-12">
-        <AnalyticsBarChart />
+    <div className="rounded-2xl border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="max-w-3xl">
+        <p className="text-sm font-medium text-brand-600 dark:text-brand-400">
+          RISE Database
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold text-gray-800 dark:text-white/90">
+          Welcome to RISE Database
+        </h1>
+        <p className="mt-4 text-base text-gray-500 dark:text-gray-400">
+          Use the sidebar to open the analysis dashboard, manage school and
+          teacher Excel data, or import new files into the database.
+        </p>
       </div>
     </div>
   )

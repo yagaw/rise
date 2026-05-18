@@ -1,48 +1,27 @@
 "use client"
-import React, { useMemo, useState } from "react"
+import React, { useState } from "react"
 import { ApexOptions } from "apexcharts"
 import dynamic from "next/dynamic"
-import { organizations, getOrganizationScopedData } from "@/data/education"
+import { useExcelAnalytics } from "./useExcelAnalytics"
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
 export default function TeachersBySubjectChart() {
-  const [organizationId, setOrganizationId] = useState<string>("all")
-  const scoped = useMemo(
-    () => getOrganizationScopedData(organizationId),
-    [organizationId]
-  )
-
-  const subjectCounts = useMemo(() => {
-    const counts = {
-      Math: 0,
-      Science: 0,
-      English: 0,
-      Burmese: 0,
-      History: 0,
-      Geography: 0,
-      Physics: 0,
-      Chemistry: 0,
-      Biology: 0,
-    }
-
-    scoped.teachers.forEach((t) => {
-      if (t.math) counts.Math++
-      if (t.science) counts.Science++
-      if (t.english) counts.English++
-      if (t.burmese) counts.Burmese++
-      if (t.history) counts.History++
-      if (t.geography) counts.Geography++
-      if (t.phy) counts.Physics++
-      if (t.che) counts.Chemistry++
-      if (t.bio) counts.Biology++
-    })
-
-    return counts
-  }, [scoped.teachers])
-
+  const [organization, setOrganization] = useState("all")
+  const { data, loading } = useExcelAnalytics(organization)
+  const subjectCounts = data?.charts?.teachersBySubject ?? {}
+  const subjectGenderCounts = data?.charts?.teachersBySubjectGender ?? {}
   const subjects = Object.keys(subjectCounts)
   const counts = Object.values(subjectCounts)
+  const subjectRows = subjects.map((subject) => ({
+    subject,
+    total:
+      subjectGenderCounts[subject]?.total ??
+      subjectCounts[subject] ??
+      0,
+    male: subjectGenderCounts[subject]?.male ?? 0,
+    female: subjectGenderCounts[subject]?.female ?? 0,
+  }))
 
   const options: ApexOptions = {
     colors: [
@@ -80,25 +59,45 @@ export default function TeachersBySubjectChart() {
         </div>
         <select
           className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-          value={organizationId}
-          onChange={(e) => setOrganizationId(e.target.value)}
+          value={organization}
+          onChange={(event) => setOrganization(event.target.value)}
+          disabled={loading}
         >
           <option value="all">All organizations</option>
-          {organizations.map((org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
+          {(data?.organizations ?? []).map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>
       </div>
       <div className="flex justify-center mx-auto">
         <ReactApexChart
-          key={`${organizationId}-${series.join("-")}`}
+          key={`${subjects.join("-")}-${series.join("-")}`}
           options={options}
           series={series}
           type="donut"
           height={320}
         />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {subjectRows.map((item) => (
+          <div
+            key={item.subject}
+            className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900"
+          >
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {item.subject}
+            </p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              Total {item.total.toLocaleString()}
+            </p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Male {item.male.toLocaleString()} + Female{" "}
+              {item.female.toLocaleString()}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   )

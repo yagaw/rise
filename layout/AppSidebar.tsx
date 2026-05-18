@@ -29,8 +29,8 @@ type NavItem = {
 const overviewItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Analytics",
-    path: "/analytics",
+    name: "Analysis Dashboard",
+    path: "/dashboard",
   },
 ]
 
@@ -65,6 +65,11 @@ const adminItems: NavItem[] = [
     icon: <DownloadIcon />,
     name: "Import Data",
     path: "/import",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Excel Data",
+    path: "/excel-data",
   },
   {
     icon: <ListIcon />,

@@ -1,11 +1,11 @@
 "use client"
-import React, { useMemo, useState } from "react"
+import React, { useState } from "react"
 import { ApexOptions } from "apexcharts"
 import { Dropdown } from "../ui/dropdown/Dropdown"
 import { DropdownItem } from "../ui/dropdown/DropdownItem"
 import { MoreDotIcon } from "@/icons"
-import { organizations, getOrganizationScopedData } from "@/data/education"
 import dynamic from "next/dynamic"
+import { useExcelAnalytics } from "./useExcelAnalytics"
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -13,18 +13,22 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 
 export default function TeacherGenderSessionChart() {
   const [isOpen, setIsOpen] = useState(false)
-  const [organizationId, setOrganizationId] = useState<string>("all")
-
-  const scoped = useMemo(
-    () => getOrganizationScopedData(organizationId),
-    [organizationId]
-  )
-  const male = scoped.teachers.filter((t) => t.gender === "male").length
-  const female = scoped.teachers.filter((t) => t.gender === "female").length
+  const [organization, setOrganization] = useState("all")
+  const { data, loading } = useExcelAnalytics(organization)
+  const genderCounts = data?.charts?.teacherGender ?? {}
+  const labels = Object.keys(genderCounts).length
+    ? Object.keys(genderCounts)
+    : ["Male", "Female"]
+  const series = labels.map((label) => genderCounts[label] ?? 0)
+  const maleCount = genderCounts.Male ?? 0
+  const femaleCount = genderCounts.Female ?? 0
+  const totalTeachers = maleCount + femaleCount
+  const organizationLabel =
+    organization === "all" ? "All organizations" : organization
 
   const options: ApexOptions = {
     colors: ["#3641f5", "#dde9ff"],
-    labels: ["Male", "Female"],
+    labels,
     chart: {
       fontFamily: "Outfit, sans-serif",
       type: "donut",
@@ -71,8 +75,6 @@ export default function TeacherGenderSessionChart() {
       { breakpoint: 640, options: { chart: { width: 370, height: 290 } } },
     ],
   }
-  const series = [male, female]
-
   function toggleDropdown() {
     setIsOpen(!isOpen)
   }
@@ -89,13 +91,14 @@ export default function TeacherGenderSessionChart() {
           </h3>
           <select
             className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-            value={organizationId}
-            onChange={(e) => setOrganizationId(e.target.value)}
+            value={organization}
+            onChange={(event) => setOrganization(event.target.value)}
+            disabled={loading}
           >
             <option value="all">All organizations</option>
-            {organizations.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
+            {(data?.organizations ?? []).map((name) => (
+              <option key={name} value={name}>
+                {name}
               </option>
             ))}
           </select>
@@ -124,10 +127,32 @@ export default function TeacherGenderSessionChart() {
           </Dropdown>
         </div>
       </div>
+      <div className="mb-3 rounded-lg bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700 dark:bg-gray-900 dark:text-gray-300">
+        <span className="text-gray-500 dark:text-gray-400">
+          {organizationLabel}:
+        </span>{" "}
+        Male {maleCount.toLocaleString()} + Female{" "}
+        {femaleCount.toLocaleString()} = Total{" "}
+        {totalTeachers.toLocaleString()}
+      </div>
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Male</p>
+          <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            {maleCount.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Female</p>
+          <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            {femaleCount.toLocaleString()}
+          </p>
+        </div>
+      </div>
       <div>
         <div className="flex justify-center mx-auto" id="chartDarkStyle">
           <ReactApexChart
-            key={`teacher-${organizationId}-${male}-${female}`}
+            key={`teacher-${labels.join("-")}-${series.join("-")}`}
             options={options}
             series={series}
             type="donut"

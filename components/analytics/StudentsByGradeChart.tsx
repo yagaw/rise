@@ -1,33 +1,19 @@
 "use client"
-import React, { useMemo, useState } from "react"
+import React, { useState } from "react"
 import { ApexOptions } from "apexcharts"
 import dynamic from "next/dynamic"
-import { organizations, getOrganizationScopedData } from "@/data/education"
+import { useExcelAnalytics } from "./useExcelAnalytics"
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
 export default function StudentsByGradeChart() {
-  const [organizationId, setOrganizationId] = useState<string>("all")
-  const scoped = useMemo(
-    () => getOrganizationScopedData(organizationId),
-    [organizationId]
-  )
-
-  const gradeOrder = [
-    "Grade 3",
-    "Grade 4",
-    "Grade 5",
-    "Grade 6",
-    "Grade 7",
-    "Grade 8",
-    "Grade 9",
-    "Grade 10",
-    "Grade 11",
-    "Grade 12",
-  ]
-  const counts = gradeOrder.map(
-    (g) => scoped.students.filter((s) => s.gradeLevel === g).length
-  )
+  const [organization, setOrganization] = useState("all")
+  const { data, loading } = useExcelAnalytics(organization)
+  const gradeCounts = data?.charts?.studentsByGrade ?? {}
+  const gradeOrder = Object.keys(gradeCounts).length
+    ? Object.keys(gradeCounts)
+    : ["No data"]
+  const counts = gradeOrder.map((grade) => gradeCounts[grade] ?? 0)
 
   const options: ApexOptions = {
     colors: ["#465fff"],
@@ -68,13 +54,14 @@ export default function StudentsByGradeChart() {
         </div>
         <select
           className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-          value={organizationId}
-          onChange={(e) => setOrganizationId(e.target.value)}
+          value={organization}
+          onChange={(event) => setOrganization(event.target.value)}
+          disabled={loading}
         >
           <option value="all">All organizations</option>
-          {organizations.map((org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
+          {(data?.organizations ?? []).map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>
@@ -82,7 +69,7 @@ export default function StudentsByGradeChart() {
       <div className="max-w-full overflow-x-auto custom-scrollbar">
         <div className="-ml-5 min-w-[800px] xl:min-w-full pl-2">
           <ReactApexChart
-            key={`${organizationId}-${counts.join("-")}`}
+            key={`${gradeOrder.join("-")}-${counts.join("-")}`}
             options={options}
             series={series}
             type="bar"

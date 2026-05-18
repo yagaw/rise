@@ -9,6 +9,7 @@ export const schoolQleTable =
 export const eccdTable = process.env.SUPABASE_ECCD_TABLE || "eccd_ease"
 export const teesTable = process.env.SUPABASE_TEES_TABLE || "tees_ease"
 export const dataYearTable = process.env.SUPABASE_DATA_YEAR_TABLE || "data_year"
+export const dataTypeTable = process.env.SUPABASE_DATA_TYPE_TABLE || "data_type"
 export const organizationsTable =
   process.env.SUPABASE_ORGANIZATIONS_TABLE || "organization"
 export const techerPositionTable = "techer_position"
