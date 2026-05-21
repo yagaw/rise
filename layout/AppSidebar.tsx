@@ -9,14 +9,12 @@ import {
   GridIcon,
   HorizontaLDots,
   BoxCubeIcon,
-  GroupIcon,
   DownloadIcon,
   ListIcon,
-  UserCircleIcon,
 } from "../icons/index"
-import SidebarWidget from "./SidebarWidget"
 
-type MenuType = "overview" | "school" | "admin"
+
+type MenuType = "overview" | "be" | "eccd" | "ie" | "admin"
 
 type NavItem = {
   name: string
@@ -34,28 +32,44 @@ const overviewItems: NavItem[] = [
   },
 ]
 
-const schoolItems: NavItem[] = [
+const beItems: NavItem[] = [
   {
     icon: <BoxCubeIcon />,
-    name: "Schools",
+    name: "BE",
     subItems: [
-      { name: "School List", path: "/schools" },
+      { name: "School", path: "/schools" },
+      { name: "Teacher", path: "/teachers" },
+      { name: "Classroom Observation", path: "/classroom-observation" },
       { name: "School QLE", path: "/school-qle" },
+      { name: "Student", path: "/school_students" },
     ],
   },
+]
+
+const eccdItems: NavItem[] = [
   {
-    icon: <GroupIcon />,
-    name: "Teachers & Staff",
+    icon: <BoxCubeIcon />,
+    name: "ECCD",
     subItems: [
-      { name: "Teachers", path: "/teachers" },
-      { name: "ECCD", path: "/eccd" },
+      { name: "School", path: "/eccd-school" },
+      { name: "Teacher", path: "/eccd-teacher" },
+      { name: "Classroom Observation", path: "/eccd-co" },
+      { name: "School QLE", path: "/eccd-qle" },
+      { name: "Student", path: "/eccd" },
     ],
   },
+]
+
+const ieItems: NavItem[] = [
   {
-    icon: <UserCircleIcon />,
-    name: "Students",
+    icon: <BoxCubeIcon />,
+    name: "IE",
     subItems: [
-      { name: "TEES Students", path: "/school_students" },
+      { name: "School", path: "/ie-school" },
+      { name: "Teacher", path: "/ie-teacher" },
+      { name: "Classroom Observation", path: "/ie-classroom-observation" },
+      { name: "School QLE", path: "/ie-qle" },
+      { name: "Student", path: "/ie-student" },
     ],
   },
 ]
@@ -83,14 +97,17 @@ const adminItems: NavItem[] = [
       { name: "Teacher Types", path: "/teach_types" },
       { name: "Teacher Status", path: "/teacher_status" },
       { name: "Teacher Positions", path: "/techer_position" },
-      { name: "Data Year", path: "/data_year" },
+      { name: "Data Type", path: "/data_type" },
+          { name: "Data Year", path: "/data_year" },
     ],
   },
 ]
 
 const sections: { type: MenuType; label: string; items: NavItem[] }[] = [
   { type: "overview", label: "Overview", items: overviewItems },
-  { type: "school", label: "School Management", items: schoolItems },
+  { type: "be", label: "Basic Education", items: beItems },
+  { type: "eccd", label: "ECCD", items: eccdItems },
+  { type: "ie", label: "Inclusive Education", items: ieItems },
   { type: "admin", label: "Administration", items: adminItems },
 ]
 
@@ -320,32 +337,13 @@ const AppSidebar: React.FC = () => {
         }`}
       >
         <Link href="/">
-          {isMounted && (isExpanded || isHovered || isMobileOpen) ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
             <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
+              src="/images/logo/rise-logo.webp"
+              alt="RISE Logo"
+              width={150}
+              height={40}
             />
-          )}
-        </Link>
+          </Link>
       </div>
 
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
@@ -369,9 +367,7 @@ const AppSidebar: React.FC = () => {
             ))}
           </div>
         </nav>
-        {isMounted && (isExpanded || isHovered || isMobileOpen) ? (
-          <SidebarWidget />
-        ) : null}
+        
       </div>
     </aside>
   )

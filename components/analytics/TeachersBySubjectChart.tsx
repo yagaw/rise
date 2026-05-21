@@ -1,14 +1,23 @@
 "use client"
-import React, { useState } from "react"
+import React from "react"
 import { ApexOptions } from "apexcharts"
 import dynamic from "next/dynamic"
 import { useExcelAnalytics } from "./useExcelAnalytics"
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
-export default function TeachersBySubjectChart() {
-  const [organization, setOrganization] = useState("all")
-  const { data, loading } = useExcelAnalytics(organization)
+type Props = {
+  dataYearId?: string
+  program?: "be" | "eccd" | "ie"
+  organization?: string
+}
+
+export default function TeachersBySubjectChart({
+  dataYearId,
+  program = "be",
+  organization = "all",
+}: Props) {
+  const { data, loading } = useExcelAnalytics(organization, dataYearId, program)
   const subjectCounts = data?.charts?.teachersBySubject ?? {}
   const subjectGenderCounts = data?.charts?.teachersBySubjectGender ?? {}
   const subjects = Object.keys(subjectCounts)
@@ -57,48 +66,47 @@ export default function TeachersBySubjectChart() {
             Distribution across subject areas
           </span>
         </div>
-        <select
-          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-          value={organization}
-          onChange={(event) => setOrganization(event.target.value)}
-          disabled={loading}
-        >
-          <option value="all">All organizations</option>
-          {(data?.organizations ?? []).map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
       </div>
-      <div className="flex justify-center mx-auto">
-        <ReactApexChart
-          key={`${subjects.join("-")}-${series.join("-")}`}
-          options={options}
-          series={series}
-          type="donut"
-          height={320}
-        />
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {subjectRows.map((item) => (
-          <div
-            key={item.subject}
-            className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900"
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {item.subject}
-            </p>
-            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
-              Total {item.total.toLocaleString()}
-            </p>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Male {item.male.toLocaleString()} + Female{" "}
-              {item.female.toLocaleString()}
-            </p>
+      {loading ? (
+        <div className="h-[320px] animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+      ) : !dataYearId ? (
+        <div className="flex h-[320px] items-center justify-center">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            Select a data year to view chart
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-center mx-auto">
+            <ReactApexChart
+              key={`${subjects.join("-")}-${series.join("-")}`}
+              options={options}
+              series={series}
+              type="donut"
+              height={320}
+            />
           </div>
-        ))}
-      </div>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {subjectRows.map((item) => (
+              <div
+                key={item.subject}
+                className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900"
+              >
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {item.subject}
+                </p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                  Total {item.total.toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Male {item.male.toLocaleString()} + Female{" "}
+                  {item.female.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

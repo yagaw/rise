@@ -11,10 +11,19 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 })
 
-export default function StudentGenderSessionChart() {
+type Props = {
+  dataYearId?: string
+  program?: "be" | "eccd" | "ie"
+  organization?: string
+}
+
+export default function StudentGenderSessionChart({
+  dataYearId,
+  program = "be",
+  organization = "all",
+}: Props) {
   const [isOpen, setIsOpen] = useState(false)
-  const [organization, setOrganization] = useState("all")
-  const { data, loading } = useExcelAnalytics(organization)
+  const { data, loading } = useExcelAnalytics(organization, dataYearId, program)
   const genderCounts = data?.charts?.studentGender ?? {}
   const labels = Object.keys(genderCounts).length
     ? Object.keys(genderCounts)
@@ -84,19 +93,6 @@ export default function StudentGenderSessionChart() {
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Students by Gender
           </h3>
-          <select
-            className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-            value={organization}
-            onChange={(event) => setOrganization(event.target.value)}
-            disabled={loading}
-          >
-            <option value="all">All organizations</option>
-            {(data?.organizations ?? []).map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
         </div>
         <div className="relative h-fit">
           <button onClick={toggleDropdown} className="dropdown-toggle">
@@ -122,7 +118,15 @@ export default function StudentGenderSessionChart() {
           </Dropdown>
         </div>
       </div>
-      <div>
+      {loading ? (
+        <div className="h-[290px] animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+      ) : !dataYearId ? (
+        <div className="flex h-[290px] items-center justify-center">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            Select a data year to view chart
+          </p>
+        </div>
+      ) : (
         <div className="flex justify-center mx-auto" id="chartDarkStyle">
           <ReactApexChart
             key={`student-${labels.join("-")}-${series.join("-")}`}
@@ -132,7 +136,7 @@ export default function StudentGenderSessionChart() {
             height={290}
           />
         </div>
-      </div>
+      )}
     </div>
   )
 }

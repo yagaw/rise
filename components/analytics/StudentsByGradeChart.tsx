@@ -1,14 +1,23 @@
 "use client"
-import React, { useState } from "react"
+import React from "react"
 import { ApexOptions } from "apexcharts"
 import dynamic from "next/dynamic"
 import { useExcelAnalytics } from "./useExcelAnalytics"
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
-export default function StudentsByGradeChart() {
-  const [organization, setOrganization] = useState("all")
-  const { data, loading } = useExcelAnalytics(organization)
+type Props = {
+  dataYearId?: string
+  program?: "be" | "eccd" | "ie"
+  organization?: string
+}
+
+export default function StudentsByGradeChart({
+  dataYearId,
+  program = "be",
+  organization = "all",
+}: Props) {
+  const { data, loading } = useExcelAnalytics(organization, dataYearId, program)
   const gradeCounts = data?.charts?.studentsByGrade ?? {}
   const gradeOrder = Object.keys(gradeCounts).length
     ? Object.keys(gradeCounts)
@@ -52,31 +61,28 @@ export default function StudentsByGradeChart() {
             Distribution across grades
           </span>
         </div>
-        <select
-          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-          value={organization}
-          onChange={(event) => setOrganization(event.target.value)}
-          disabled={loading}
-        >
-          <option value="all">All organizations</option>
-          {(data?.organizations ?? []).map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
       </div>
-      <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="-ml-5 min-w-[800px] xl:min-w-full pl-2">
-          <ReactApexChart
-            key={`${gradeOrder.join("-")}-${counts.join("-")}`}
-            options={options}
-            series={series}
-            type="bar"
-            height={300}
-          />
+      {loading ? (
+        <div className="h-[300px] animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+      ) : !dataYearId ? (
+        <div className="flex h-[300px] items-center justify-center">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            Select a data year to view chart
+          </p>
         </div>
-      </div>
+      ) : (
+        <div className="max-w-full overflow-x-auto custom-scrollbar">
+          <div className="-ml-5 min-w-[800px] xl:min-w-full pl-2">
+            <ReactApexChart
+              key={`${gradeOrder.join("-")}-${counts.join("-")}`}
+              options={options}
+              series={series}
+              type="bar"
+              height={300}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

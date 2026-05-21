@@ -547,8 +547,7 @@ export default function SchoolsPage() {
                   {excelFile.name || "School Excel File"}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Data year: {selectedDataYearLabel} | Rows: {rows.length} |
-                  Fields: {columns.length}
+                  Data year: {selectedDataYearLabel} | Rows: {rows.length}
                 </p>
               </div>
 

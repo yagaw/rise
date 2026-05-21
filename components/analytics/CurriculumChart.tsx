@@ -11,30 +11,36 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 })
 
+const CURRICULUM_COLORS: Record<string, string> = {
+  national: "#3B82F6",
+  international: "#10B981",
+  mixed: "#F59E0B",
+}
+
+const DEFAULT_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444", "#EC4899"]
+
 type Props = {
   dataYearId?: string
   program?: "be" | "eccd" | "ie"
   organization?: string
 }
 
-export default function TeacherGenderSessionChart({
+export default function CurriculumChart({
   dataYearId,
   program = "be",
   organization = "all",
 }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const { data, loading } = useExcelAnalytics(organization, dataYearId, program)
-  const genderCounts = data?.charts?.teacherGender ?? {}
-  const labels = Object.keys(genderCounts).length
-    ? Object.keys(genderCounts)
-    : ["Male", "Female"]
-  const series = labels.map((label) => genderCounts[label] ?? 0)
+  const curCounts = data?.charts?.curriculum ?? {}
+  const labels = Object.keys(curCounts).length
+    ? Object.keys(curCounts)
+    : ["National", "International", "Mixed"]
+  const series = labels.map((label) => curCounts[label] ?? 0)
   const chartColors = labels.map((label) =>
-    label.toLowerCase() === "female" ? "#F472B6" : "#3B82F6"
+    CURRICULUM_COLORS[label.toLowerCase()] ?? DEFAULT_COLORS[labels.indexOf(label) % DEFAULT_COLORS.length]
   )
-  const maleCount = genderCounts.Male ?? 0
-  const femaleCount = genderCounts.Female ?? 0
-  const totalTeachers = maleCount + femaleCount
+  const totalCount = series.reduce((sum, val) => sum + val, 0)
   const organizationLabel =
     organization === "all" ? "All organizations" : organization
 
@@ -95,11 +101,11 @@ export default function TeacherGenderSessionChart({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+    <div className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Teachers by Gender
+            Schools by Curriculum
           </h3>
         </div>
         <div className="relative h-fit">
@@ -130,23 +136,20 @@ export default function TeacherGenderSessionChart({
         <span className="text-gray-500 dark:text-gray-400">
           {organizationLabel}:
         </span>{" "}
-        Male {maleCount.toLocaleString()} + Female{" "}
-        {femaleCount.toLocaleString()} = Total{" "}
-        {totalTeachers.toLocaleString()}
+        Total {totalCount.toLocaleString()} school{totalCount !== 1 ? "s" : ""}
       </div>
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Male</p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
-            {maleCount.toLocaleString()}
-          </p>
-        </div>
-        <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Female</p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
-            {femaleCount.toLocaleString()}
-          </p>
-        </div>
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {labels.map((label) => (
+          <div
+            key={label}
+            className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900"
+          >
+            <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              {(curCounts[label] ?? 0).toLocaleString()}
+            </p>
+          </div>
+        ))}
       </div>
       {loading ? (
         <div className="h-[290px] animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
@@ -157,9 +160,9 @@ export default function TeacherGenderSessionChart({
           </p>
         </div>
       ) : (
-        <div className="flex justify-center mx-auto" id="chartDarkStyle">
+        <div className="mx-auto flex flex-1 justify-center" id="chartDarkStyle">
           <ReactApexChart
-            key={`teacher-${labels.join("-")}-${series.join("-")}`}
+            key={`curriculum-${labels.join("-")}-${series.join("-")}`}
             options={options}
             series={series}
             type="donut"

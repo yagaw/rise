@@ -52,7 +52,9 @@ function isExcelFile(file: File) {
   return lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")
 }
 
-async function parseUploadResponse(response: Response): Promise<UploadResponse> {
+async function parseUploadResponse(
+  response: Response,
+): Promise<UploadResponse> {
   const text = await response.text()
 
   if (!text) return {}
@@ -77,6 +79,9 @@ export default function ImportPage() {
   const dataYearRef = useRef<HTMLDivElement>(null)
   const [dataTypes, setDataTypes] = useState<DataType[]>([])
   const [selectedDataType, setSelectedDataType] = useState("")
+  const [dataTypeSearch, setDataTypeSearch] = useState("")
+  const [isDataTypeOpen, setIsDataTypeOpen] = useState(false)
+  const dataTypeRef = useRef<HTMLDivElement>(null)
 
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -126,7 +131,7 @@ export default function ImportPage() {
   }, [])
 
   useEffect(() => {
-    if (!isDataYearOpen) return
+    if (!isDataYearOpen && !isDataTypeOpen) return
 
     const handler = (event: MouseEvent) => {
       if (
@@ -135,11 +140,18 @@ export default function ImportPage() {
       ) {
         setIsDataYearOpen(false)
       }
+
+      if (
+        dataTypeRef.current &&
+        !dataTypeRef.current.contains(event.target as Node)
+      ) {
+        setIsDataTypeOpen(false)
+      }
     }
 
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
-  }, [isDataYearOpen])
+  }, [isDataTypeOpen, isDataYearOpen])
 
   const selectedDataYearLabel = useMemo(() => {
     if (!selectedDataYear) return "Select data year"
@@ -162,6 +174,30 @@ export default function ImportPage() {
       return title.includes(query) || id.includes(query)
     })
   }, [dataYearSearch, dataYears])
+
+  const selectedDataTypeLabel = useMemo(() => {
+    if (!selectedDataType) return "Select data type"
+
+    const found = dataTypes.find(
+      (dataType) => toDataTypeId(dataType.id) === selectedDataType,
+    )
+
+    return found ? getDataTypeLabel(found) : selectedDataType
+  }, [dataTypes, selectedDataType])
+
+  const filteredDataTypes = useMemo(() => {
+    const query = dataTypeSearch.trim().toLowerCase()
+
+    if (!query) return dataTypes
+
+    return dataTypes.filter((dataType) => {
+      const id = toDataTypeId(dataType.id).toLowerCase()
+      const label = getDataTypeLabel(dataType).toLowerCase()
+      const remark = (dataType.remark || "").toLowerCase()
+
+      return id.includes(query) || label.includes(query) || remark.includes(query)
+    })
+  }, [dataTypeSearch, dataTypes])
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] ?? null
@@ -219,13 +255,16 @@ export default function ImportPage() {
     setSuccessUrl("")
 
     try {
-      const response = await fetch(`/api/excel_data/import?${params.toString()}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
+      const response = await fetch(
+        `/api/excel_data/import?${params.toString()}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+          },
+          body: file,
         },
-        body: file,
-      })
+      )
       const body = await parseUploadResponse(response)
 
       if (!response.ok) {
@@ -260,9 +299,8 @@ export default function ImportPage() {
               Upload Excel File
             </h3>
             <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-              The file will be uploaded to the excel_data storage bucket. A
-              record will then be saved in the excel_data table with data_year,
-              data_type, name, and url.
+              The file will be uploaded to the cloud storage and the metadata
+              will be saved in the database.
             </p>
           </div>
           <Link
@@ -291,13 +329,9 @@ export default function ImportPage() {
                   setError("")
                   setSuccessUrl("")
                 }}
-                placeholder="see_testing"
+                placeholder="Your Excel file name or table name in database"
                 className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
               />
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                This value is stored in excel_data.name and used as the uploaded
-                file name.
-              </p>
             </div>
 
             <div>
@@ -323,7 +357,9 @@ export default function ImportPage() {
                       placeholder="Search data year..."
                       className="mb-2 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
                       value={dataYearSearch}
-                      onChange={(event) => setDataYearSearch(event.target.value)}
+                      onChange={(event) =>
+                        setDataYearSearch(event.target.value)
+                      }
                     />
                     <div className="max-h-56 overflow-y-auto">
                       {filteredDataYears.length > 0 ? (
@@ -362,39 +398,65 @@ export default function ImportPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="data_type"
-                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Data Type
               </label>
-              <div className="relative">
-                <select
-                  id="data_type"
-                  value={selectedDataType}
-                  onChange={(event) => {
-                    setSelectedDataType(event.target.value)
-                    setError("")
-                    setSuccessUrl("")
-                  }}
-                  className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-10 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+              <div className="relative" ref={dataTypeRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsDataTypeOpen((open) => !open)}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-10 text-left text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
                 >
-                  <option value="" className="dark:bg-gray-900">
-                    Select data type
-                  </option>
-                  {dataTypes.map((dataType) => (
-                    <option
-                      key={toDataTypeId(dataType.id)}
-                      value={toDataTypeId(dataType.id)}
-                      className="dark:bg-gray-900"
-                    >
-                      {getDataTypeLabel(dataType)}
-                    </option>
-                  ))}
-                </select>
-                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  v
-                </span>
+                  {selectedDataTypeLabel}
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+                    v
+                  </span>
+                </button>
+
+                {isDataTypeOpen && (
+                  <div className="absolute z-20 mt-2 w-full rounded-lg border border-gray-200 bg-white p-2 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900">
+                    <input
+                      type="text"
+                      placeholder="Search data type..."
+                      className="mb-2 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
+                      value={dataTypeSearch}
+                      onChange={(event) =>
+                        setDataTypeSearch(event.target.value)
+                      }
+                    />
+                    <div className="max-h-56 overflow-y-auto">
+                      {filteredDataTypes.length > 0 ? (
+                        filteredDataTypes.map((item) => (
+                          <button
+                            key={toDataTypeId(item.id)}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDataType(toDataTypeId(item.id))
+                              setIsDataTypeOpen(false)
+                              setDataTypeSearch("")
+                              setError("")
+                              setSuccessUrl("")
+                            }}
+                            className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-white/5 ${
+                              selectedDataType === toDataTypeId(item.id)
+                                ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400"
+                                : "text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            <span>{getDataTypeLabel(item)}</span>
+                            <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                              {toDataTypeId(item.id)}
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          No data type found.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -438,14 +500,6 @@ export default function ImportPage() {
           {successUrl && (
             <div className="rounded-lg border border-success-300 bg-success-50 p-4 text-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400">
               Excel file uploaded and saved successfully.
-              <a
-                href={successUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="ml-2 font-medium underline"
-              >
-                View file
-              </a>
             </div>
           )}
 

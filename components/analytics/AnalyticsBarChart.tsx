@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react"
+import React from "react"
 // import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts"
 import { useExcelAnalytics } from "./useExcelAnalytics"
@@ -10,9 +10,22 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 })
 
-export default function AnalyticsBarChart() {
-  const [organization, setOrganization] = useState("all")
-  const { data, loading } = useExcelAnalytics(organization)
+type Props = {
+  dataYearId?: string
+  program?: "be" | "eccd" | "ie"
+  organization?: string
+  onOrganizationChange?: (value: string) => void
+  organizations?: string[]
+}
+
+export default function AnalyticsBarChart({
+  dataYearId,
+  program = "be",
+  organization = "all",
+  onOrganizationChange,
+  organizations = [],
+}: Props) {
+  const { data, loading } = useExcelAnalytics(organization, dataYearId, program)
   const organizationData = data?.charts?.educationByOrganization?.length
     ? data.charts.educationByOrganization
     : [{ name: "No data", students: 0, schools: 0, teachers: 0 }]
@@ -22,7 +35,7 @@ export default function AnalyticsBarChart() {
     chart: {
       fontFamily: "Outfit, sans-serif",
       type: "bar",
-      height: 350,
+      height: 260,
       toolbar: {
         show: false,
       },
@@ -94,42 +107,54 @@ export default function AnalyticsBarChart() {
     },
   ]
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="flex flex-wrap items-start justify-between gap-5">
+    <div className="rounded-2xl border border-gray-200 bg-white px-4 pt-4 dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="mb-1 text-lg font-semibold text-gray-800 dark:text-white/90">
+          <h3 className="mb-0.5 text-base font-semibold text-gray-800 dark:text-white/90">
             Education Analytics
           </h3>
-          <span className="block text-gray-500 text-theme-sm dark:text-gray-400">
+          <span className="block text-xs text-gray-500 dark:text-gray-400">
             {loading
-              ? "Loading excel_data..."
+              ? "Loading..."
               : "Students, schools and teachers by organization from excel_data"}
           </span>
         </div>
-        <select
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-          value={organization}
-          onChange={(event) => setOrganization(event.target.value)}
-          disabled={loading}
-        >
-          <option value="all">All organizations</option>
-          {(data?.organizations ?? []).map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
+        {onOrganizationChange && (
+          <select
+            className="h-9 rounded-lg border border-gray-300 bg-white px-3 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            value={organization}
+            onChange={(event) => onOrganizationChange(event.target.value)}
+            disabled={loading || !dataYearId}
+          >
+            <option value="all">All organizations</option>
+            {organizations.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
-      <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="-ml-5 min-w-[1300px] xl:min-w-full pl-2">
-          <ReactApexChart
-            options={options}
-            series={series}
-            type="bar"
-            height={350}
-          />
+      {loading ? (
+        <div className="mt-3 h-[260px] animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+      ) : !dataYearId ? (
+        <div className="flex h-[260px] items-center justify-center">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            Select a data year to view chart
+          </p>
         </div>
-      </div>
+      ) : (
+        <div className="max-w-full overflow-x-auto custom-scrollbar">
+          <div className="-ml-5 min-w-[1300px] xl:min-w-full pl-2">
+            <ReactApexChart
+              options={options}
+              series={series}
+              type="bar"
+              height={260}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

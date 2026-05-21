@@ -22,8 +22,35 @@ type ParsedSummary = {
 
 const EXCEL_BUCKET = "excel_data"
 const EXCEL_TABLE = "excel_data"
-const SCHOOL_DATA_TYPE_ID = "1"
-const TEACHER_DATA_TYPE_ID = "2"
+const PROGRAM_CONFIG = {
+  be: {
+    schoolDataTypeId: process.env.BE_SCHOOL_DATA_TYPE_ID || "1",
+    teacherDataTypeId: process.env.BE_TEACHER_DATA_TYPE_ID || "2",
+    qleDataTypeId: process.env.BE_QLE_DATA_TYPE_ID || "5",
+    classroomObservationDataTypeId:
+      process.env.BE_CLASSROOM_OBSERVATION_DATA_TYPE_ID || "6",
+    studentDataTypeId: process.env.BE_STUDENT_DATA_TYPE_ID || "",
+    studentNameCandidates: ["student", "tees"],
+  },
+  eccd: {
+    schoolDataTypeId: process.env.ECCD_SCHOOL_DATA_TYPE_ID || "3",
+    teacherDataTypeId: process.env.ECCD_TEACHER_DATA_TYPE_ID || "4",
+    qleDataTypeId: process.env.ECCD_QLE_DATA_TYPE_ID || "7",
+    classroomObservationDataTypeId:
+      process.env.ECCD_CLASSROOM_OBSERVATION_DATA_TYPE_ID || "8",
+    studentDataTypeId: process.env.ECCD_STUDENT_DATA_TYPE_ID || "",
+    studentNameCandidates: ["student", "eccd"],
+  },
+  ie: {
+    schoolDataTypeId: process.env.IE_SCHOOL_DATA_TYPE_ID || "",
+    teacherDataTypeId: process.env.IE_TEACHER_DATA_TYPE_ID || "",
+    qleDataTypeId: process.env.IE_QLE_DATA_TYPE_ID || "9",
+    classroomObservationDataTypeId:
+      process.env.IE_CLASSROOM_OBSERVATION_DATA_TYPE_ID || "",
+    studentDataTypeId: process.env.IE_STUDENT_DATA_TYPE_ID || "",
+    studentNameCandidates: ["student", "ie"],
+  },
+}
 
 const workbookCache = new Map<string, ParsedSummary>()
 
@@ -66,6 +93,23 @@ function findColumn(columns: string[], candidates: string[]) {
   return null
 }
 
+function normalizeLooseKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "")
+}
+
+function findColumnLoose(columns: string[], candidates: string[]) {
+  const normalizedColumns = new Map(
+    columns.map((column) => [normalizeLooseKey(column), column]),
+  )
+
+  for (const candidate of candidates) {
+    const found = normalizedColumns.get(normalizeLooseKey(candidate))
+    if (found) return found
+  }
+
+  return null
+}
+
 function normalizeGender(value: unknown) {
   const text = getCellText(value).toLowerCase()
   if (!text) return "Unknown"
@@ -97,6 +141,30 @@ function countByColumn(
   })
 
   return counts
+}
+
+function parseNumber(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null
+
+  const text = getCellText(value)
+    .replace("%", "")
+    .replace(/,/g, "")
+
+  if (!text) return null
+
+  const number = Number(text)
+  return Number.isFinite(number) ? number : null
+}
+
+function normalizeGrade(value: unknown) {
+  const text = getCellText(value).trim().toUpperCase()
+  const match = text.match(/[ABCD]/)
+  return match?.[0] ?? ""
+}
+
+function getAverage(values: number[]) {
+  if (values.length === 0) return 0
+  return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
 function getStoragePathFromUrl(url: string) {
@@ -231,7 +299,262 @@ function getChartData(summary: ParsedSummary) {
     }
   })
 
-  return { gender, grade, organization, subjects, subjectsByGender }
+  const schoolType = countByColumn(summary.rows, columns, [
+    "sch_type",
+    "school_type",
+    "schooltype",
+    "type",
+  ])
+  const curriculum = countByColumn(summary.rows, columns, [
+    "cur",
+    "curriculum",
+    "sch_cur",
+    "school_curriculum",
+  ])
+
+  return { gender, grade, organization, subjects, subjectsByGender, schoolType, curriculum }
+}
+
+function getQleData(summary: ParsedSummary) {
+  const columns = Object.keys(summary.rows[0] ?? {})
+  const organizationColumn = findColumn(columns, [
+    "org",
+    "organization",
+    "organisation",
+  ])
+  const percentageColumn = findColumn(columns, [
+    "percentage",
+    "percent",
+    "%",
+    "qle_percentage",
+    "qle_percent",
+  ])
+  const mosColumn = findColumn(columns, ["mos", "mean_of_score", "mean_score"])
+  const gradeColumn = findColumn(columns, [
+    "mos_grade",
+    "mos grade",
+    "mosgrade",
+    "grade",
+    "qle_grade",
+  ])
+  const gradeCounts: Record<"A" | "B" | "C" | "D", number> = {
+    A: 0,
+    B: 0,
+    C: 0,
+    D: 0,
+  }
+  const organizationGroups = new Map<
+    string,
+    {
+      organization: string
+      rowCount: number
+      percentages: number[]
+      mosValues: number[]
+      gradeCounts: Record<"A" | "B" | "C" | "D", number>
+    }
+  >()
+  const percentages: number[] = []
+  const mosValues: number[] = []
+
+  summary.rows.forEach((row) => {
+    const organization =
+      (organizationColumn ? getCellText(row[organizationColumn]) : "") ||
+      "Unknown"
+    const group =
+      organizationGroups.get(organization) ??
+      {
+        organization,
+        rowCount: 0,
+        percentages: [],
+        mosValues: [],
+        gradeCounts: { A: 0, B: 0, C: 0, D: 0 },
+      }
+
+    group.rowCount += 1
+
+    const percentageValue = percentageColumn
+      ? parseNumber(row[percentageColumn])
+      : null
+
+    if (percentageValue !== null) {
+      percentages.push(percentageValue)
+      group.percentages.push(percentageValue)
+    }
+
+    const mosValue = mosColumn ? parseNumber(row[mosColumn]) : null
+
+    if (mosValue !== null) {
+      mosValues.push(mosValue)
+      group.mosValues.push(mosValue)
+    }
+
+    if (gradeColumn) {
+      const grade = normalizeGrade(row[gradeColumn])
+      if (grade === "A" || grade === "B" || grade === "C" || grade === "D") {
+        gradeCounts[grade] += 1
+        group.gradeCounts[grade] += 1
+      }
+    }
+
+    organizationGroups.set(organization, group)
+  })
+
+  return {
+    rowCount: summary.rowCount,
+    averagePercentage: getAverage(percentages),
+    averageMos: getAverage(mosValues),
+    gradeCounts,
+    byOrganization: Array.from(organizationGroups.values())
+      .sort((a, b) => a.organization.localeCompare(b.organization))
+      .map((group) => ({
+        organization: group.organization,
+        rowCount: group.rowCount,
+        averagePercentage: getAverage(group.percentages),
+        averageMos: getAverage(group.mosValues),
+        gradeCounts: group.gradeCounts,
+      })),
+    columns: {
+      organization: organizationColumn,
+      percentage: percentageColumn,
+      mos: mosColumn,
+      grade: gradeColumn,
+    },
+  }
+}
+
+function normalizeAchievement(value: unknown) {
+  const text = getCellText(value).toLowerCase()
+  const compactText = normalizeLooseKey(text)
+
+  if (!text) return ""
+
+  if (
+    [
+      "n",
+      "no",
+      "not achieved",
+      "notachieved",
+      "not achieve",
+      "not met",
+      "fail",
+      "failed",
+    ].includes(text)
+      || compactText.includes("notachieved")
+      || compactText.includes("notmet")
+  ) {
+    return "N"
+  }
+
+  if (
+    ["y", "yes", "achieved", "achieve", "met", "pass", "passed"].includes(text)
+      || compactText.includes("achieved")
+      || compactText.includes("achieve")
+  ) {
+    return "Y"
+  }
+
+  return ""
+}
+
+function getClassroomObservationData(summary: ParsedSummary) {
+  const columns = Object.keys(summary.rows[0] ?? {})
+  const organizationColumn = findColumn(columns, [
+    "org",
+    "organization",
+    "organisation",
+  ])
+  const achievedColumn = findColumnLoose(columns, [
+    "achieved",
+    "achieved y",
+    "achieved(y)",
+    "achieved_y",
+    "y",
+  ])
+  const notAchievedColumn = findColumnLoose(columns, [
+    "not achieved",
+    "not achieved n",
+    "not achieved(n)",
+    "not_achieved",
+    "notachieved",
+    "n",
+  ])
+  const statusColumn = findColumnLoose(columns, [
+    "achieved/not achieved",
+    "achieved / not achieved",
+    "achieved not achieved",
+    "achieved_not_achieved",
+    "achievednotachieved",
+    "achieved or not achieved",
+    "achieved (y) / not achieved (n)",
+    "achieved(y)/not achieved(n)",
+    "status",
+    "result",
+    "achievement",
+    "achieved status",
+    "classroom observation",
+    "classroom observation result",
+    "co result",
+  ])
+  const byOrganization = new Map<
+    string,
+    { organization: string; achieved: number; notAchieved: number; unknown: number }
+  >()
+  const totals = { achieved: 0, notAchieved: 0, unknown: 0 }
+
+  summary.rows.forEach((row) => {
+    const organization =
+      (organizationColumn ? getCellText(row[organizationColumn]) : "") ||
+      "Unknown"
+    const group =
+      byOrganization.get(organization) ?? {
+        organization,
+        achieved: 0,
+        notAchieved: 0,
+        unknown: 0,
+      }
+    let achievement = statusColumn ? normalizeAchievement(row[statusColumn]) : ""
+
+    if (!achievement && achievedColumn && isTruthyExcelValue(row[achievedColumn])) {
+      achievement = "Y"
+    }
+
+    if (
+      !achievement &&
+      notAchievedColumn &&
+      isTruthyExcelValue(row[notAchievedColumn])
+    ) {
+      achievement = "N"
+    }
+
+    if (achievement === "Y") {
+      totals.achieved += 1
+      group.achieved += 1
+    } else if (achievement === "N") {
+      totals.notAchieved += 1
+      group.notAchieved += 1
+    } else {
+      totals.unknown += 1
+      group.unknown += 1
+    }
+
+    byOrganization.set(organization, group)
+  })
+
+  return {
+    rowCount: summary.rowCount,
+    achieved: totals.achieved,
+    notAchieved: totals.notAchieved,
+    unknown: totals.unknown,
+    byOrganization: Array.from(byOrganization.values()).sort((a, b) =>
+      a.organization.localeCompare(b.organization),
+    ),
+    columns: {
+      organization: organizationColumn,
+      achieved: achievedColumn,
+      notAchieved: notAchievedColumn,
+      status: statusColumn,
+    },
+  }
 }
 
 function getOrganizationNames(...summaries: ParsedSummary[]) {
@@ -388,10 +711,18 @@ async function getCombinedExcelSummary(
   }
 }
 
-function findStudentExcelRecords(records: ExcelDataRecord[]) {
+function findStudentExcelRecords(
+  records: ExcelDataRecord[],
+  dataTypeId: string,
+  nameCandidates: string[],
+) {
+  if (dataTypeId) {
+    return listExcelRecordsByType(records, dataTypeId)
+  }
+
   return records.filter((record) => {
     const name = getCellText(record.name).toLowerCase()
-    return name.includes("student") || name.includes("tees")
+    return nameCandidates.some((candidate) => name.includes(candidate))
   })
 }
 
@@ -420,6 +751,10 @@ export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams
   const dataYearId = searchParams.get("data_year")?.trim()
   const organization = searchParams.get("organization")?.trim() || "all"
+  const programKey =
+    searchParams.get("program")?.trim().toLowerCase() as keyof typeof PROGRAM_CONFIG | null
+  const program = programKey && programKey in PROGRAM_CONFIG ? programKey : "be"
+  const programConfig = PROGRAM_CONFIG[program]
 
   if (!dataYearId) {
     return NextResponse.json({ error: "Data year is required." }, { status: 400 })
@@ -428,21 +763,47 @@ export async function GET(request: Request) {
   try {
     const supabase = createSupabaseAdminClient()
     const excelFiles = await listExcelRecords(supabase, dataYearId)
-    const schoolRecords = listExcelRecordsByType(excelFiles, SCHOOL_DATA_TYPE_ID)
+    const schoolRecords = programConfig.schoolDataTypeId
+      ? listExcelRecordsByType(excelFiles, programConfig.schoolDataTypeId)
+      : []
     const teacherRecords = listExcelRecordsByType(
       excelFiles,
-      TEACHER_DATA_TYPE_ID,
+      programConfig.teacherDataTypeId,
     )
-    const studentRecords = findStudentExcelRecords(excelFiles)
-    const [schoolSummary, teacherSummary, studentSummary] = await Promise.all([
+    const qleRecords = programConfig.qleDataTypeId
+      ? listExcelRecordsByType(excelFiles, programConfig.qleDataTypeId)
+      : []
+    const classroomObservationRecords =
+      programConfig.classroomObservationDataTypeId
+        ? listExcelRecordsByType(
+            excelFiles,
+            programConfig.classroomObservationDataTypeId,
+          )
+        : []
+    const studentRecords = findStudentExcelRecords(
+      excelFiles,
+      programConfig.studentDataTypeId,
+      programConfig.studentNameCandidates,
+    )
+    const [
+      schoolSummary,
+      teacherSummary,
+      studentSummary,
+      qleSummary,
+      classroomObservationSummary,
+    ] = await Promise.all([
       getCombinedExcelSummary(supabase, schoolRecords),
       getCombinedExcelSummary(supabase, teacherRecords),
       getCombinedExcelSummary(supabase, studentRecords),
+      getCombinedExcelSummary(supabase, qleRecords),
+      getCombinedExcelSummary(supabase, classroomObservationRecords),
     ])
     const organizations = getOrganizationNames(
       schoolSummary,
       teacherSummary,
       studentSummary,
+      qleSummary,
+      classroomObservationSummary,
     )
     const filteredSchoolSummary = filterSummaryByOrganization(
       schoolSummary,
@@ -456,24 +817,59 @@ export async function GET(request: Request) {
       studentSummary,
       organization,
     )
+    const filteredQleSummary = filterSummaryByOrganization(qleSummary, organization)
+    const filteredClassroomObservationSummary = filterSummaryByOrganization(
+      classroomObservationSummary,
+      organization,
+    )
     const schoolChart = getChartData(filteredSchoolSummary)
     const teacherChart = getChartData(filteredTeacherSummary)
     const studentChart = getChartData(filteredStudentSummary)
+    const qleData = getQleData(filteredQleSummary)
+    const classroomObservationData = getClassroomObservationData(
+      filteredClassroomObservationSummary,
+    )
 
     return NextResponse.json({
       dataYear: dataYearId,
       organization,
       organizations,
       excelFiles,
-      schools: toPublicSummary(schoolSummary),
-      teachers: toPublicSummary(teacherSummary),
-      students: toPublicSummary(studentSummary),
+      schools: toPublicSummary({
+        ...filteredSchoolSummary,
+        files: schoolSummary.files,
+        errors: schoolSummary.errors,
+      }),
+      teachers: toPublicSummary({
+        ...filteredTeacherSummary,
+        files: teacherSummary.files,
+        errors: teacherSummary.errors,
+      }),
+      students: toPublicSummary({
+        ...filteredStudentSummary,
+        files: studentSummary.files,
+        errors: studentSummary.errors,
+      }),
+      qle: toPublicSummary({
+        ...filteredQleSummary,
+        files: qleSummary.files,
+        errors: qleSummary.errors,
+      }),
+      classroomObservation: toPublicSummary({
+        ...filteredClassroomObservationSummary,
+        files: classroomObservationSummary.files,
+        errors: classroomObservationSummary.errors,
+      }),
+      qleSummary: qleData,
+      classroomObservationSummary: classroomObservationData,
       charts: {
         teacherGender: teacherChart.gender,
         studentGender: studentChart.gender,
         studentsByGrade: studentChart.grade,
         teachersBySubject: teacherChart.subjects,
         teachersBySubjectGender: teacherChart.subjectsByGender,
+        schoolType: schoolChart.schoolType,
+        curriculum: schoolChart.curriculum,
         educationByOrganization: Array.from(
           new Set([
             ...Object.keys(schoolChart.organization),
@@ -492,11 +888,15 @@ export async function GET(request: Request) {
         rows:
           filteredSchoolSummary.rowCount +
           filteredTeacherSummary.rowCount +
-          filteredStudentSummary.rowCount,
+          filteredStudentSummary.rowCount +
+          filteredQleSummary.rowCount +
+          filteredClassroomObservationSummary.rowCount,
         fields:
           schoolSummary.fieldCount +
           teacherSummary.fieldCount +
-          studentSummary.fieldCount,
+          studentSummary.fieldCount +
+          qleSummary.fieldCount +
+          classroomObservationSummary.fieldCount,
       },
     })
   } catch (error) {

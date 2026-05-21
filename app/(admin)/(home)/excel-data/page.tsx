@@ -438,9 +438,7 @@ export default function ExcelDataPage() {
                 <th className="px-5 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                   Created
                 </th>
-                <th className="px-5 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">
-                  File
-                </th>
+                
                 <th className="px-5 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                   Actions
                 </th>
@@ -450,7 +448,7 @@ export default function ExcelDataPage() {
               {loading && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     Loading Excel data...
@@ -461,7 +459,7 @@ export default function ExcelDataPage() {
               {!loading && records.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No Excel data found.
@@ -493,20 +491,7 @@ export default function ExcelDataPage() {
                         ? new Date(record.created_at).toLocaleString()
                         : "-"}
                     </td>
-                    <td className="px-5 py-4 text-sm">
-                      {record.url ? (
-                        <a
-                          href={record.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-brand-600 hover:underline dark:text-brand-400"
-                        >
-                          View Excel
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
+                    
                     <td className="px-5 py-4">
                       <Button
                         size="sm"

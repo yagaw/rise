@@ -30,13 +30,13 @@ type SaveResponse = {
   error?: string
 }
 
-type TeacherFilter = {
+type EccdSchoolFilter = {
   key: string
   label: string
   candidates: string[]
 }
 
-type AvailableTeacherFilter = TeacherFilter & {
+type AvailableEccdSchoolFilter = EccdSchoolFilter & {
   column: string
 }
 
@@ -45,11 +45,6 @@ const FILTER_FIELDS = [
     key: "organization",
     label: "Organization",
     candidates: ["organization", "org"],
-  },
-  {
-    key: "gender",
-    label: "Gender",
-    candidates: ["gender"],
   },
   {
     key: "school_name",
@@ -66,7 +61,12 @@ const FILTER_FIELDS = [
     label: "Township",
     candidates: ["ts_eng_mimu"],
   },
-] satisfies TeacherFilter[]
+  {
+    key: "school_type",
+    label: "School type",
+    candidates: ["sch_type", "school_type", "type"],
+  },
+] satisfies EccdSchoolFilter[]
 
 function toDataYearId(value: unknown) {
   if (value === null || value === undefined) return ""
@@ -102,12 +102,13 @@ function findColumn(columns: string[], candidates: string[]) {
   return null
 }
 
-export default function TeachersPage() {
+export default function EccdSchoolPage() {
   const [dataYears, setDataYears] = useState<DataYear[]>([])
   const [selectedDataYear, setSelectedDataYear] = useState("")
   const [loadingYears, setLoadingYears] = useState(true)
   const [loadingExcelFiles, setLoadingExcelFiles] = useState(false)
-  const [loadingTeachers, setLoadingTeachers] = useState(false)
+  const [loadingEccdSchool, setLoadingEccdSchool] =
+    useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
@@ -166,11 +167,15 @@ export default function TeachersPage() {
           data_year: selectedDataYear,
           list: "1",
         })
-        const response = await fetch(`/api/teachers/excel?${params.toString()}`)
+        const response = await fetch(
+          `/api/eccd-school/excel?${params.toString()}`,
+        )
         const body = (await response.json()) as LoadResponse
 
         if (!response.ok) {
-          throw new Error(body.error || "Failed to load teacher Excel files.")
+          throw new Error(
+            body.error || "Failed to load ECCD School Excel files.",
+          )
         }
 
         const nextExcelFiles = body.excelFiles ?? []
@@ -182,7 +187,7 @@ export default function TeachersPage() {
         const message =
           loadError instanceof Error
             ? loadError.message
-            : "Failed to load teacher Excel files."
+            : "Failed to load ECCD School Excel files."
         setExcelFiles([])
         setSelectedExcelFileId("")
         setError(message)
@@ -202,22 +207,19 @@ export default function TeachersPage() {
     return found?.title || selectedDataYear
   }, [dataYears, selectedDataYear])
 
-  const availableFilters = useMemo(
-    () => {
-      const filters: AvailableTeacherFilter[] = []
+  const availableFilters = useMemo(() => {
+    const filters: AvailableEccdSchoolFilter[] = []
 
-      FILTER_FIELDS.forEach((filter) => {
-        const column = findColumn(columns, filter.candidates)
+    FILTER_FIELDS.forEach((filter) => {
+      const column = findColumn(columns, filter.candidates)
 
-        if (column) {
-          filters.push({ ...filter, column })
-        }
-      })
+      if (column) {
+        filters.push({ ...filter, column })
+      }
+    })
 
-      return filters
-    },
-    [columns],
-  )
+    return filters
+  }, [columns])
 
   const filterOptions = useMemo(() => {
     const options: Record<string, string[]> = {}
@@ -254,9 +256,7 @@ export default function TeachersPage() {
             return getCellText(row[filter.column]) === selectedValue
           })
 
-          return (
-            matchesFilters && rowMatchesSearch(row, columns, searchTerm)
-          )
+          return matchesFilters && rowMatchesSearch(row, columns, searchTerm)
         }),
     [availableFilters, columns, rows, searchTerm, selectedFilters],
   )
@@ -287,7 +287,7 @@ export default function TeachersPage() {
     clearWorkbook()
   }
 
-  const handleLoadTeachers = async () => {
+  const handleLoadEccdSchool = async () => {
     if (!selectedDataYear) {
       setError("Select a data year first.")
       return
@@ -298,7 +298,7 @@ export default function TeachersPage() {
       return
     }
 
-    setLoadingTeachers(true)
+    setLoadingEccdSchool(true)
     setError("")
     setSuccessMessage("")
     clearWorkbook()
@@ -308,11 +308,11 @@ export default function TeachersPage() {
         data_year: selectedDataYear,
         excel_file_id: selectedExcelFileId,
       })
-      const response = await fetch(`/api/teachers/excel?${params.toString()}`)
+      const response = await fetch(`/api/eccd-school/excel?${params.toString()}`)
       const body = (await response.json()) as LoadResponse
 
       if (!response.ok) {
-        throw new Error(body.error || "Failed to load teacher Excel file.")
+        throw new Error(body.error || "Failed to load ECCD School Excel file.")
       }
 
       setExcelFile(body.excelFile ?? null)
@@ -323,10 +323,10 @@ export default function TeachersPage() {
       const message =
         loadError instanceof Error
           ? loadError.message
-          : "Failed to load teacher Excel file."
+          : "Failed to load ECCD School Excel file."
       setError(message)
     } finally {
-      setLoadingTeachers(false)
+      setLoadingEccdSchool(false)
     }
   }
 
@@ -398,11 +398,9 @@ export default function TeachersPage() {
     closeRowEditor()
   }
 
-  
-
   const handleSave = async () => {
     if (!excelFile?.id) {
-      setError("Load a teacher Excel file before saving.")
+      setError("Load an ECCD School Excel file before saving.")
       return
     }
 
@@ -411,7 +409,7 @@ export default function TeachersPage() {
     setSuccessMessage("")
 
     try {
-      const response = await fetch("/api/teachers/excel", {
+      const response = await fetch("/api/eccd-school/excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -423,17 +421,17 @@ export default function TeachersPage() {
       const body = (await response.json()) as SaveResponse
 
       if (!response.ok) {
-        throw new Error(body.error || "Failed to save teacher Excel file.")
+        throw new Error(body.error || "Failed to save ECCD School Excel file.")
       }
 
       setColumns(body.columns ?? columns)
       setRows(body.rows ?? rows)
-      setSuccessMessage("Teacher Excel file saved.")
+      setSuccessMessage("ECCD School Excel file saved.")
     } catch (saveError) {
       const message =
         saveError instanceof Error
           ? saveError.message
-          : "Failed to save teacher Excel file."
+          : "Failed to save ECCD School Excel file."
       setError(message)
     } finally {
       setSaving(false)
@@ -443,7 +441,7 @@ export default function TeachersPage() {
   return (
     <div className="min-w-0">
       <SettingsButtons />
-      <PageBreadcrumb pageTitle="Teachers" />
+      <PageBreadcrumb pageTitle="ECCD School" />
 
       <div className="min-w-0 overflow-hidden rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div className="border-b border-gray-100 p-5 dark:border-gray-800">
@@ -476,6 +474,7 @@ export default function TeachersPage() {
                 ))}
               </select>
             </div>
+
             <div>
               <label
                 htmlFor="excel_data"
@@ -513,26 +512,40 @@ export default function TeachersPage() {
                 ))}
               </select>
             </div>
+
             <Button
               size="sm"
-              onClick={handleLoadTeachers}
-              disabled={!selectedDataYear || !selectedExcelFileId || loadingTeachers}
-              isLoading={loadingTeachers}
+              onClick={handleLoadEccdSchool}
+              disabled={!selectedDataYear || !selectedExcelFileId || loadingEccdSchool}
+              isLoading={loadingEccdSchool}
               className="h-11 whitespace-nowrap"
             >
-              Load Teacher List
+              Load ECCD School
             </Button>
           </div>
         </div>
 
+        {error && (
+          <div className="mx-5 mt-5 rounded-lg border border-error-300 bg-error-50 p-4 text-sm text-error-600 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-400">
+            {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mx-5 mt-5 rounded-lg border border-success-300 bg-success-50 p-4 text-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400">
+            {successMessage}
+          </div>
+        )}
+
         {!excelFile && (
           <div className="p-10 text-center">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Select a data year to load the teacher Excel file.
+              Select a data year and data record to load the ECCD School Excel
+              file.
             </p>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              The app will look for an uploaded Excel record with data type
-              teacher.
+              ECCD School data uses excel_data records with data_type 3
+              by default.
             </p>
           </div>
         )}
@@ -542,11 +555,10 @@ export default function TeachersPage() {
             <div className="flex flex-col gap-4 border-b border-gray-100 p-4 dark:border-gray-800 sm:p-5">
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
-                  {excelFile.name || "Teacher Excel File"}
+                  {excelFile.name || "ECCD School Excel File"}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Data year: {selectedDataYearLabel} | Rows: {rows.length} |
-                  Fields: {columns.length}
+                  Data year: {selectedDataYearLabel} | Rows: {rows.length}
                 </p>
               </div>
 
@@ -569,7 +581,6 @@ export default function TeachersPage() {
                 >
                   Add Row
                 </Button>
-                
                 <Button
                   size="sm"
                   onClick={handleSave}
@@ -582,17 +593,17 @@ export default function TeachersPage() {
               </div>
 
               {availableFilters.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {availableFilters.map((filter) => (
                     <div key={filter.key} className="min-w-0">
                       <label
-                        htmlFor={`teacher-filter-${filter.key}`}
+                        htmlFor={`eccd-school-filter-${filter.key}`}
                         className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400"
                       >
                         {filter.label}
                       </label>
                       <select
-                        id={`teacher-filter-${filter.key}`}
+                        id={`eccd-school-filter-${filter.key}`}
                         value={selectedFilters[filter.key] ?? ""}
                         onChange={(event) =>
                           handleFilterChange(filter.key, event.target.value)
@@ -625,18 +636,6 @@ export default function TeachersPage() {
                 </div>
               )}
             </div>
-
-            {error && (
-              <div className="mx-5 mt-5 rounded-lg border border-error-300 bg-error-50 p-4 text-sm text-error-600 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-400">
-                {error}
-              </div>
-            )}
-
-            {successMessage && (
-              <div className="mx-5 mt-5 rounded-lg border border-success-300 bg-success-50 p-4 text-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400">
-                {successMessage}
-              </div>
-            )}
 
             <div className="custom-scrollbar max-w-full overflow-x-auto">
               <table className="w-max min-w-full text-left">
@@ -762,8 +761,8 @@ export default function TeachersPage() {
               </button>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                 {editingRowIndex === null
-                  ? "Add Teacher Row"
-                  : "Edit Teacher Row"}
+                  ? "Add ECCD School Row"
+                  : "Edit ECCD School Row"}
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Update the Excel fields, then save the row. Use Save Excel on
