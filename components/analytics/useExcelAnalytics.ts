@@ -47,6 +47,25 @@ export type ExcelAnalyticsData = {
       error: string | null
     }>
   }
+  students?: {
+    rowCount: number
+    fieldCount: number
+    files?: Array<{
+      id: string | number
+      data_type?: string | number
+      name?: string
+      url?: string
+    }>
+    errors?: Array<{
+      file: {
+        id: string | number
+        data_type?: string | number
+        name?: string
+        url?: string
+      } | null
+      error: string | null
+    }>
+  }
   qle?: {
     rowCount: number
     fieldCount: number
@@ -132,6 +151,15 @@ export type ExcelAnalyticsData = {
     teacherGender?: Record<string, number>
     studentGender?: Record<string, number>
     studentsByGrade?: Record<string, number>
+    studentGradeColumn?: string | null
+    studentSources?: Array<{
+      id: string
+      label: string
+      rowCount: number
+      fileCount: number
+      gender?: Record<string, number>
+    }>
+    studentSourceGender?: Record<string, Record<string, number>>
     teachersBySubject?: Record<string, number>
     teachersBySubjectGender?: Record<
       string,

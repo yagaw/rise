@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import AnalyticsBarChart from "./AnalyticsBarChart"
 import EducationAnalyticsDashboard from "./EducationAnalyticsDashboard"
 import StudentGenderSessionChart from "./StudentGenderSessionChart"
+import StudentProgramGenderChart from "./StudentProgramGenderChart"
+import StudentSourceBreakdown from "./StudentSourceBreakdown"
 import TeacherGenderSessionChart from "./TeacherGenderSessionChart"
 import StudentsByGradeChart from "./StudentsByGradeChart"
 import TeachersBySubjectChart from "./TeachersBySubjectChart"
@@ -261,16 +263,68 @@ export default function DashboardContent() {
         />
       </div>
 
-      <div
-        className="col-span-12 md:col-span-6 xl:col-span-4 animate-card-enter"
-        style={{ animationDelay: "200ms" }}
-      >
-        <StudentGenderSessionChart
-          dataYearId={selectedDataYear || undefined}
-          program={activeProgram}
-          organization={organization}
-        />
-      </div>
+      {activeTab !== "BE" && (
+        <div
+          className="col-span-12 md:col-span-6 xl:col-span-4 animate-card-enter"
+          style={{ animationDelay: "200ms" }}
+        >
+          <StudentGenderSessionChart
+            dataYearId={selectedDataYear || undefined}
+            program={activeProgram}
+            organization={organization}
+          />
+        </div>
+      )}
+
+      {activeTab === "BE" && (
+        <>
+          <div
+            className="col-span-12 md:col-span-6 xl:col-span-4 animate-card-enter"
+            style={{ animationDelay: "200ms" }}
+          >
+            <StudentProgramGenderChart
+              dataYearId={selectedDataYear || undefined}
+              organization={organization}
+              sourceId="15"
+              title="Students NFE by Gender"
+            />
+          </div>
+
+          <div
+            className="col-span-12 md:col-span-6 xl:col-span-4 animate-card-enter"
+            style={{ animationDelay: "215ms" }}
+          >
+            <StudentProgramGenderChart
+              dataYearId={selectedDataYear || undefined}
+              organization={organization}
+              sourceId="16"
+              title="Students TEES by Gender"
+            />
+          </div>
+
+          <div
+            className="col-span-12 md:col-span-6 xl:col-span-4 animate-card-enter"
+            style={{ animationDelay: "220ms" }}
+          >
+            <StudentProgramGenderChart
+              dataYearId={selectedDataYear || undefined}
+              organization={organization}
+              sourceId="17"
+              title="Students Women Literacy by Gender"
+            />
+          </div>
+
+          <div
+            className="col-span-12 md:col-span-6 xl:col-span-4 animate-card-enter"
+            style={{ animationDelay: "225ms" }}
+          >
+            <StudentSourceBreakdown
+              dataYearId={selectedDataYear || undefined}
+              organization={organization}
+            />
+          </div>
+        </>
+      )}
 
       <div
         className="col-span-12 md:col-span-6 xl:col-span-4 animate-card-enter"

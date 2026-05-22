@@ -114,10 +114,11 @@ export default function EducationAnalyticsDashboard({
   const metrics: MetricItem[] = useMemo(() => {
     const schoolRows = analytics?.schools?.rowCount ?? 0
     const teacherRows = analytics?.teachers?.rowCount ?? 0
+    const studentRows = analytics?.students?.rowCount ?? 0
     const excelFiles = analytics?.totals?.excelFiles ?? 0
-    const totalRows = analytics?.totals?.rows ?? 0
     const schoolFiles = analytics?.schools?.files?.length ?? 0
     const teacherFiles = analytics?.teachers?.files?.length ?? 0
+    const studentFiles = analytics?.students?.files?.length ?? 0
 
     return [
       {
@@ -138,22 +139,22 @@ export default function EducationAnalyticsDashboard({
       },
       {
         id: 3,
+        title: "Student Totals",
+        value: formatNumber(studentRows),
+        change: studentRows > 0 ? "Loaded" : "No data",
+        direction: studentRows > 0 ? "up" : "warning",
+        comparisonText: `${studentFiles} file${studentFiles === 1 ? "" : "s"} | ${programLabel}`,
+      },
+      {
+        id: 4,
         title: "Excel Files",
         value: formatNumber(excelFiles),
         change: excelFiles > 0 ? "Available" : "Missing",
         direction: excelFiles > 0 ? "up" : "warning",
         comparisonText: "From excel_data",
       },
-      {
-        id: 4,
-        title: "Total Excel Rows",
-        value: formatNumber(totalRows),
-        change: totalRows > 0 ? "Ready" : "No rows",
-        direction: totalRows > 0 ? "up" : "warning",
-        comparisonText: selectedDataYearLabel,
-      },
     ]
-  }, [analytics, programLabel, selectedDataYearLabel])
+  }, [analytics, programLabel])
 
   const summaryWarnings = [
     ...(analytics?.schools?.errors ?? []).map((item) => ({
@@ -163,6 +164,11 @@ export default function EducationAnalyticsDashboard({
     })),
     ...(analytics?.teachers?.errors ?? []).map((item) => ({
       type: `${programLabel} Teacher`,
+      fileName: item.file?.name,
+      error: item.error,
+    })),
+    ...(analytics?.students?.errors ?? []).map((item) => ({
+      type: `${programLabel} Student`,
       fileName: item.file?.name,
       error: item.error,
     })),

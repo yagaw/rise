@@ -1,18 +1,15 @@
-import PageBreadcrumb from "@/components/common/PageBreadCrumb"
+import ExcelDataEditorPage from "@/components/excel-data-page/ExcelDataEditorPage"
 
 export default function WomenLiteracyPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Women Literacy Students" />
-
-      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
-          Women Literacy Students
-        </h3>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Women Literacy student records will be managed here.
-        </p>
-      </div>
-    </div>
+    <ExcelDataEditorPage
+      pageTitle="Women Literacy"
+      apiPath="/api/women-literacy/excel"
+      loadButtonLabel="Load Women Literacy"
+      fileFallbackName="Women Literacy Excel File"
+      emptyPrompt="Select a data year and data record to load the Women Literacy Excel file."
+      dataTypeDescription="Women Literacy data uses excel_data records with data_type 17 by default."
+      filterIdPrefix="women-literacy"
+    />
   )
 }

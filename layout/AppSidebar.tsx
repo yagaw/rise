@@ -51,7 +51,7 @@ const studentItems: NavItem[] = [
     icon: <UserCircleIcon />,
     name: "Student",
     subItems: [
-      { name: "TEES", path: "/school_students" },
+      { name: "TEES", path: "/tees-student" },
       { name: "NFE", path: "/nfe-student" },
       { name: "Women Literacy", path: "/women-literacy" },
     ],

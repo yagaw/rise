@@ -19,6 +19,7 @@ export default function StudentsByGradeChart({
 }: Props) {
   const { data, loading } = useExcelAnalytics(organization, dataYearId, program)
   const gradeCounts = data?.charts?.studentsByGrade ?? {}
+  const gradeColumn = data?.charts?.studentGradeColumn
   const gradeOrder = Object.keys(gradeCounts).length
     ? Object.keys(gradeCounts)
     : ["No data"]
@@ -58,7 +59,9 @@ export default function StudentsByGradeChart({
             Students by Grade
           </h3>
           <span className="block text-gray-500 text-theme-sm dark:text-gray-400">
-            Distribution across grades
+            {gradeColumn
+              ? `Distribution from ${gradeColumn}`
+              : "Distribution across grades"}
           </span>
         </div>
       </div>

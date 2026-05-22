@@ -20,6 +20,11 @@ type ParsedSummary = {
   rows: Record<string, string | number | boolean | null>[]
 }
 
+type StudentDataTypeConfig = {
+  id: string
+  label: string
+}
+
 const EXCEL_BUCKET = "excel_data"
 const EXCEL_TABLE = "excel_data"
 const PROGRAM_CONFIG = {
@@ -29,7 +34,20 @@ const PROGRAM_CONFIG = {
     qleDataTypeId: process.env.BE_QLE_DATA_TYPE_ID || "5",
     classroomObservationDataTypeId:
       process.env.BE_CLASSROOM_OBSERVATION_DATA_TYPE_ID || "6",
-    studentDataTypeId: process.env.BE_STUDENT_DATA_TYPE_ID || "",
+    studentDataTypes: [
+      {
+        id: process.env.NFE_STUDENT_DATA_TYPE_ID || "15",
+        label: "NFE",
+      },
+      {
+        id: process.env.TEES_STUDENT_DATA_TYPE_ID || "16",
+        label: "TEES",
+      },
+      {
+        id: process.env.WOMEN_LITERACY_DATA_TYPE_ID || "17",
+        label: "Women Literacy",
+      },
+    ],
     studentNameCandidates: ["student", "tees"],
   },
   eccd: {
@@ -38,16 +56,26 @@ const PROGRAM_CONFIG = {
     qleDataTypeId: process.env.ECCD_QLE_DATA_TYPE_ID || "7",
     classroomObservationDataTypeId:
       process.env.ECCD_CLASSROOM_OBSERVATION_DATA_TYPE_ID || "8",
-    studentDataTypeId: process.env.ECCD_STUDENT_DATA_TYPE_ID || "",
+    studentDataTypes: [
+      {
+        id: process.env.ECCD_STUDENT_DATA_TYPE_ID || "14",
+        label: "ECCD",
+      },
+    ],
     studentNameCandidates: ["student", "eccd"],
   },
   ie: {
-    schoolDataTypeId: process.env.IE_SCHOOL_DATA_TYPE_ID || "",
-    teacherDataTypeId: process.env.IE_TEACHER_DATA_TYPE_ID || "",
-    qleDataTypeId: process.env.IE_QLE_DATA_TYPE_ID || "9",
+    schoolDataTypeId: process.env.IE_SCHOOL_DATA_TYPE_ID || "10",
+    teacherDataTypeId: process.env.IE_TEACHER_DATA_TYPE_ID || "9",
+    qleDataTypeId: process.env.IE_QLE_DATA_TYPE_ID || "11",
     classroomObservationDataTypeId:
-      process.env.IE_CLASSROOM_OBSERVATION_DATA_TYPE_ID || "",
-    studentDataTypeId: process.env.IE_STUDENT_DATA_TYPE_ID || "",
+      process.env.IE_CLASSROOM_OBSERVATION_DATA_TYPE_ID || "12",
+    studentDataTypes: [
+      {
+        id: process.env.IE_STUDENT_DATA_TYPE_ID || "13",
+        label: "IE",
+      },
+    ],
     studentNameCandidates: ["student", "ie"],
   },
 }
@@ -143,6 +171,41 @@ function countByColumn(
   return counts
 }
 
+function countByDetectedColumn(
+  rows: Record<string, string | number | boolean | null>[],
+  column: string | null,
+  normalizer: (value: unknown) => string = (value) => getCellText(value),
+) {
+  const counts: Record<string, number> = {}
+
+  if (!column) return counts
+
+  rows.forEach((row) => {
+    const label = normalizer(row[column]) || "Unknown"
+    counts[label] = (counts[label] ?? 0) + 1
+  })
+
+  return counts
+}
+
+function findGradeColumn(columns: string[]) {
+  const exactColumn = findColumn(columns, [
+    "grade",
+    "grade_level",
+    "gradeLevel",
+    "class",
+    "level",
+    "std",
+  ])
+
+  if (exactColumn) return exactColumn
+
+  return (
+    columns.find((column) => /\bgrade(?:[_\-\s]|$)/i.test(column.trim())) ??
+    null
+  )
+}
+
 function parseNumber(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null
 
@@ -233,14 +296,8 @@ function getChartData(summary: ParsedSummary) {
     ["gender", "sex", "student_gender", "teacher_gender"],
     normalizeGender,
   )
-  const grade = countByColumn(summary.rows, columns, [
-    "grade",
-    "grade_level",
-    "gradeLevel",
-    "class",
-    "level",
-    "std",
-  ])
+  const gradeColumn = findGradeColumn(columns)
+  const grade = countByDetectedColumn(summary.rows, gradeColumn)
   const organization = countByColumn(summary.rows, columns, [
     "org",
     "organization",
@@ -312,7 +369,16 @@ function getChartData(summary: ParsedSummary) {
     "school_curriculum",
   ])
 
-  return { gender, grade, organization, subjects, subjectsByGender, schoolType, curriculum }
+  return {
+    gender,
+    grade,
+    gradeColumn,
+    organization,
+    subjects,
+    subjectsByGender,
+    schoolType,
+    curriculum,
+  }
 }
 
 function getQleData(summary: ParsedSummary) {
@@ -713,17 +779,31 @@ async function getCombinedExcelSummary(
 
 function findStudentExcelRecords(
   records: ExcelDataRecord[],
-  dataTypeId: string,
+  dataTypes: StudentDataTypeConfig[],
   nameCandidates: string[],
 ) {
-  if (dataTypeId) {
-    return listExcelRecordsByType(records, dataTypeId)
+  const dataTypeIds = dataTypes.map((dataType) => dataType.id).filter(Boolean)
+
+  if (dataTypeIds.length > 0) {
+    return records.filter((record) =>
+      dataTypeIds.includes(String(record.data_type)),
+    )
   }
 
   return records.filter((record) => {
     const name = getCellText(record.name).toLowerCase()
     return nameCandidates.some((candidate) => name.includes(candidate))
   })
+}
+
+function getStudentRecordsByType(
+  records: ExcelDataRecord[],
+  dataTypes: StudentDataTypeConfig[],
+) {
+  return dataTypes.map((dataType) => ({
+    ...dataType,
+    records: listExcelRecordsByType(records, dataType.id),
+  }))
 }
 
 function toPublicSummary(
@@ -782,8 +862,12 @@ export async function GET(request: Request) {
         : []
     const studentRecords = findStudentExcelRecords(
       excelFiles,
-      programConfig.studentDataTypeId,
+      programConfig.studentDataTypes,
       programConfig.studentNameCandidates,
+    )
+    const studentRecordGroups = getStudentRecordsByType(
+      excelFiles,
+      programConfig.studentDataTypes,
     )
     const [
       schoolSummary,
@@ -791,12 +875,20 @@ export async function GET(request: Request) {
       studentSummary,
       qleSummary,
       classroomObservationSummary,
+      studentSourceSummaries,
     ] = await Promise.all([
       getCombinedExcelSummary(supabase, schoolRecords),
       getCombinedExcelSummary(supabase, teacherRecords),
       getCombinedExcelSummary(supabase, studentRecords),
       getCombinedExcelSummary(supabase, qleRecords),
       getCombinedExcelSummary(supabase, classroomObservationRecords),
+      Promise.all(
+        studentRecordGroups.map(async (group) => ({
+          id: group.id,
+          label: group.label,
+          summary: await getCombinedExcelSummary(supabase, group.records),
+        })),
+      ),
     ])
     const organizations = getOrganizationNames(
       schoolSummary,
@@ -825,6 +917,21 @@ export async function GET(request: Request) {
     const schoolChart = getChartData(filteredSchoolSummary)
     const teacherChart = getChartData(filteredTeacherSummary)
     const studentChart = getChartData(filteredStudentSummary)
+    const studentSourceBreakdown = studentSourceSummaries.map((item) => {
+      const filteredSummary = filterSummaryByOrganization(
+        item.summary,
+        organization,
+      )
+      const chartData = getChartData(filteredSummary)
+
+      return {
+        id: item.id,
+        label: item.label,
+        rowCount: filteredSummary.rowCount,
+        fileCount: item.summary.files.length,
+        gender: chartData.gender,
+      }
+    })
     const qleData = getQleData(filteredQleSummary)
     const classroomObservationData = getClassroomObservationData(
       filteredClassroomObservationSummary,
@@ -866,6 +973,11 @@ export async function GET(request: Request) {
         teacherGender: teacherChart.gender,
         studentGender: studentChart.gender,
         studentsByGrade: studentChart.grade,
+        studentGradeColumn: studentChart.gradeColumn,
+        studentSources: studentSourceBreakdown,
+        studentSourceGender: Object.fromEntries(
+          studentSourceBreakdown.map((source) => [source.id, source.gender]),
+        ),
         teachersBySubject: teacherChart.subjects,
         teachersBySubjectGender: teacherChart.subjectsByGender,
         schoolType: schoolChart.schoolType,
