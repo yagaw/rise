@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useRef, useCallback, useState } from "react"
+import React, { useEffect, useMemo, useRef, useCallback, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -15,7 +15,14 @@ import {
 } from "../icons/index"
 
 
-type MenuType = "overview" | "be" | "student" | "eccd" | "ie" | "admin"
+type MenuType =
+  | "overview"
+  | "be"
+  | "student"
+  | "eccd"
+  | "ie"
+  | "account"
+  | "admin"
 
 type NavItem = {
   name: string
@@ -112,6 +119,9 @@ const adminItems: NavItem[] = [
           { name: "Data Year", path: "/data_year" },
     ],
   },
+]
+
+const accountItems: NavItem[] = [
   {
     icon: <UserCircleIcon />,
     name: "User Accounts",
@@ -125,20 +135,51 @@ const sections: { type: MenuType; label: string; items: NavItem[] }[] = [
   { type: "student", label: "Student", items: studentItems },
   { type: "eccd", label: "ECCD", items: eccdItems },
   { type: "ie", label: "Inclusive Education", items: ieItems },
+  { type: "account", label: "Account", items: accountItems },
   { type: "admin", label: "Administration", items: adminItems },
 ]
+
+type AccessProfile = {
+  organizationId: string | null
+  allOrganizations: boolean
+}
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar()
   const pathname = usePathname()
   const [isMounted, setIsMounted] = useState(false)
+  const [hideAdministration, setHideAdministration] = useState(false)
+  const visibleSections = useMemo(
+    () =>
+      hideAdministration
+        ? sections.filter((section) => section.type !== "admin")
+        : sections,
+    [hideAdministration],
+  )
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
+  useEffect(() => {
+    const loadAccess = async () => {
+      try {
+        const response = await fetch("/api/me/access")
+
+        if (!response.ok) return
+
+        const access = (await response.json()) as AccessProfile
+        setHideAdministration(!access.allOrganizations && Boolean(access.organizationId))
+      } catch {
+        setHideAdministration(false)
+      }
+    }
+
+    loadAccess()
+  }, [])
+
   const getInitialOpenSubmenu = (): { type: MenuType; index: number } | null => {
-    for (const section of sections) {
+    for (const section of visibleSections) {
       for (let index = 0; index < section.items.length; index++) {
         const nav = section.items[index]
         if (nav.subItems) {
@@ -164,7 +205,7 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     let submenuMatched = false
-    for (const section of sections) {
+    for (const section of visibleSections) {
       section.items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
@@ -179,7 +220,7 @@ const AppSidebar: React.FC = () => {
     if (!submenuMatched) {
       setOpenSubmenu(null)
     }
-  }, [pathname, isActive])
+  }, [pathname, isActive, visibleSections])
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -366,7 +407,7 @@ const AppSidebar: React.FC = () => {
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-5">
-            {sections.map((section) => (
+            {visibleSections.map((section) => (
               <div key={section.type}>
                 <h2
                   className={`mb-2 text-xs uppercase flex leading-5 tracking-wider font-semibold text-gray-400 dark:text-gray-500 ${

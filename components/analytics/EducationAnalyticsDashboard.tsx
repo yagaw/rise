@@ -40,6 +40,22 @@ type ExcelSummary = {
 
 type ExcelAnalyticsResponse = ExcelAnalyticsData
 
+function isSuppressedSummaryWarning(warning: {
+  type: string
+  fileName?: string | null
+  error: string | null
+}) {
+  const type = warning.type.toLowerCase()
+  const fileName = warning.fileName?.toLowerCase() ?? ""
+  const error = warning.error?.toLowerCase() ?? ""
+
+  return (
+    type === "be student" &&
+    fileName.includes("student tees") &&
+    error.includes("failed to download")
+  )
+}
+
 function toId(value: unknown) {
   if (value === null || value === undefined) return ""
   return String(value)
@@ -177,7 +193,7 @@ export default function EducationAnalyticsDashboard({
       fileName: item.file?.name,
       error: item.error,
     })),
-  ].filter((item) => item.error)
+  ].filter((item) => item.error && !isSuppressedSummaryWarning(item))
   const qleSummary = analytics?.qleSummary
   const qleFiles = analytics?.qle?.files?.length ?? 0
 

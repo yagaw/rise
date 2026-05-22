@@ -28,9 +28,32 @@ type DashboardTab = "BE" | "ECCD" | "IE"
 
 const dashboardTabs: DashboardTab[] = ["BE", "ECCD", "IE"]
 
+type AccessProfile = {
+  organizationId: string | null
+  allOrganizations: boolean
+}
+
+type OrganizationOption = {
+  id?: string | number | null
+  title?: string | null
+  short_title?: string | null
+  name?: string | null
+  longname?: string | null
+}
+
 function toId(value: unknown) {
   if (value === null || value === undefined) return ""
   return String(value)
+}
+
+function getOrganizationTitle(organization?: OrganizationOption | null) {
+  return (
+    organization?.short_title ||
+    organization?.title ||
+    organization?.name ||
+    organization?.longname ||
+    ""
+  )
 }
 
 export default function DashboardContent() {
@@ -44,23 +67,61 @@ export default function DashboardContent() {
   >("")
   const [exportError, setExportError] = useState("")
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [accessProfile, setAccessProfile] = useState<AccessProfile | null>(
+    null,
+  )
+  const [organizationLabelById, setOrganizationLabelById] = useState<
+    Record<string, string>
+  >({})
   const dashboardExportRef = useRef<HTMLDivElement>(null)
   const activeProgram = activeTab.toLowerCase() as AnalyticsProgram
 
   useEffect(() => {
-    const loadDataYears = async () => {
+    const loadInitialData = async () => {
       try {
-        const response = await fetch("/api/data_year")
-        if (!response.ok) throw new Error("Failed to load data years.")
-        const rows = (await response.json()) as DataYear[]
+        const [yearsResponse, accessResponse, organizationsResponse] = await Promise.all([
+          fetch("/api/data_year"),
+          fetch("/api/me/access"),
+          fetch("/api/organizations"),
+        ])
+
+        if (!yearsResponse.ok) throw new Error("Failed to load data years.")
+        const rows = (await yearsResponse.json()) as DataYear[]
         setDataYears(rows)
+
+        if (organizationsResponse.ok) {
+          const organizations =
+            (await organizationsResponse.json()) as OrganizationOption[]
+          const labelMap = organizations.reduce<Record<string, string>>(
+            (nextLabels, organizationItem) => {
+              const id = toId(organizationItem.id).trim()
+              const label = getOrganizationTitle(organizationItem).trim()
+
+              if (id && label) {
+                nextLabels[id] = label
+              }
+
+              return nextLabels
+            },
+            {},
+          )
+          setOrganizationLabelById(labelMap)
+        }
+
+        if (accessResponse.ok) {
+          const access = (await accessResponse.json()) as AccessProfile
+          setAccessProfile(access)
+          if (!access.allOrganizations && access.organizationId) {
+            setOrganization(access.organizationId)
+          }
+        }
       } catch {
         // silently fail — user can retry by refreshing
       } finally {
         setLoadingYears(false)
       }
     }
-    loadDataYears()
+    loadInitialData()
   }, [])
 
   useEffect(() => {
@@ -69,8 +130,11 @@ export default function DashboardContent() {
   }, [selectedDataYear])
 
   useEffect(() => {
-    setOrganization("all")
-  }, [activeTab, selectedDataYear])
+    if (!accessProfile) return
+    setOrganization(
+      accessProfile.allOrganizations ? "all" : accessProfile.organizationId || "all",
+    )
+  }, [accessProfile, activeTab, selectedDataYear])
 
   useEffect(() => {
     if (!showExportMenu) return
@@ -84,7 +148,33 @@ export default function DashboardContent() {
     selectedDataYear || undefined,
     activeProgram,
   )
-  const organizations = analyticsData?.organizations ?? []
+  const restrictedOrganizationId = !accessProfile?.allOrganizations
+    ? accessProfile?.organizationId || null
+    : analyticsData?.access?.allOrganizations === false
+      ? analyticsData.access.organizationId
+      : null
+  const restrictedOrganizationLabel = restrictedOrganizationId
+    ? organizationLabelById[restrictedOrganizationId] || restrictedOrganizationId
+    : null
+  const selectedOrganization = restrictedOrganizationLabel || organization
+  const organizations = useMemo(() => {
+    const names = analyticsData?.organizations ?? []
+
+    if (!restrictedOrganizationId) return names
+    if (restrictedOrganizationLabel) return [restrictedOrganizationLabel]
+    if (names.includes(restrictedOrganizationId)) return [restrictedOrganizationId]
+
+    return [restrictedOrganizationId]
+  }, [
+    analyticsData?.organizations,
+    restrictedOrganizationId,
+    restrictedOrganizationLabel,
+  ])
+
+  useEffect(() => {
+    if (!restrictedOrganizationId) return
+    setOrganization(restrictedOrganizationId)
+  }, [restrictedOrganizationId])
 
   const selectedDataYearLabel = useMemo(() => {
     const found = dataYears.find(
@@ -108,7 +198,7 @@ export default function DashboardContent() {
         programLabel: activeTab,
         dataYearLabel: selectedDataYearLabel,
         dataYearId: selectedDataYear,
-        organization,
+        organization: selectedOrganization,
         dashboardElement: dashboardExportRef.current,
       }
 
@@ -183,11 +273,18 @@ export default function DashboardContent() {
               disabled={!selectedDataYear}
             >
               <option value="all">All Organizations</option>
-              {organizations.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
+              {organizations.map((name) => {
+                const value =
+                  restrictedOrganizationId && name === restrictedOrganizationLabel
+                    ? restrictedOrganizationId
+                    : name
+
+                return (
+                  <option key={value} value={value}>
+                    {name}
+                  </option>
+                )
+              })}
             </select>
             <div className="relative">
               <button
@@ -246,7 +343,7 @@ export default function DashboardContent() {
         dataYears={dataYears}
         program={activeProgram}
         programLabel={activeTab}
-        organization={organization}
+        organization={selectedOrganization}
         onOrganizationChange={setOrganization}
       />
 
@@ -257,7 +354,7 @@ export default function DashboardContent() {
         <AnalyticsBarChart
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
-          organization={organization}
+          organization={selectedOrganization}
           onOrganizationChange={setOrganization}
           organizations={organizations}
         />
@@ -271,7 +368,7 @@ export default function DashboardContent() {
           <StudentGenderSessionChart
             dataYearId={selectedDataYear || undefined}
             program={activeProgram}
-            organization={organization}
+            organization={selectedOrganization}
           />
         </div>
       )}
@@ -284,7 +381,7 @@ export default function DashboardContent() {
           >
             <StudentProgramGenderChart
               dataYearId={selectedDataYear || undefined}
-              organization={organization}
+              organization={selectedOrganization}
               sourceId="15"
               title="Students NFE by Gender"
             />
@@ -296,7 +393,7 @@ export default function DashboardContent() {
           >
             <StudentProgramGenderChart
               dataYearId={selectedDataYear || undefined}
-              organization={organization}
+              organization={selectedOrganization}
               sourceId="16"
               title="Students TEES by Gender"
             />
@@ -308,7 +405,7 @@ export default function DashboardContent() {
           >
             <StudentProgramGenderChart
               dataYearId={selectedDataYear || undefined}
-              organization={organization}
+              organization={selectedOrganization}
               sourceId="17"
               title="Students Women Literacy by Gender"
             />
@@ -320,7 +417,7 @@ export default function DashboardContent() {
           >
             <StudentSourceBreakdown
               dataYearId={selectedDataYear || undefined}
-              organization={organization}
+              organization={selectedOrganization}
             />
           </div>
         </>
@@ -333,7 +430,7 @@ export default function DashboardContent() {
         <TeacherGenderSessionChart
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
-          organization={organization}
+          organization={selectedOrganization}
         />
       </div>
 
@@ -344,7 +441,7 @@ export default function DashboardContent() {
         <TeachersBySubjectChart
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
-          organization={organization}
+          organization={selectedOrganization}
         />
       </div>
 
@@ -356,7 +453,7 @@ export default function DashboardContent() {
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
           programLabel={activeTab}
-          organization={organization}
+          organization={selectedOrganization}
         />
       </div>
 
@@ -367,7 +464,7 @@ export default function DashboardContent() {
         <CurriculumChart
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
-          organization={organization}
+          organization={selectedOrganization}
         />
       </div>
 
@@ -378,7 +475,7 @@ export default function DashboardContent() {
         <SchoolTypeChart
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
-          organization={organization}
+          organization={selectedOrganization}
         />
       </div>
 
@@ -390,7 +487,7 @@ export default function DashboardContent() {
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
           programLabel={activeTab}
-          organization={organization}
+          organization={selectedOrganization}
           organizations={organizations}
           onOrganizationChange={setOrganization}
         />
@@ -403,7 +500,7 @@ export default function DashboardContent() {
         <StudentsByGradeChart
           dataYearId={selectedDataYear || undefined}
           program={activeProgram}
-          organization={organization}
+          organization={selectedOrganization}
         />
       </div>
     </div>

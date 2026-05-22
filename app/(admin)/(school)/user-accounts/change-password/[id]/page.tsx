@@ -22,7 +22,9 @@ export default function ChangeUserAccountPasswordPage() {
   useEffect(() => {
     const fetchUserAccount = async () => {
       try {
-        const response = await fetch(`/api/user-accounts/${userId}`)
+        const response = await fetch(
+          userId === "me" ? "/api/me/account" : `/api/user-accounts/${userId}`,
+        )
         const data = (await response.json()) as UserAccount | { error?: string }
 
         if (!response.ok) {

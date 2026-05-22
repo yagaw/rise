@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { requireSuperAdmin } from "../../auth"
 import { ChangeUserAccountPasswordPayload } from "@/types/userAccount"
 
@@ -8,11 +9,6 @@ interface RouteContext {
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params
-  const { adminSupabase, errorResponse } = await requireSuperAdmin()
-  if (errorResponse || !adminSupabase) {
-    return errorResponse
-  }
-
   const payload =
     (await request.json()) as Partial<ChangeUserAccountPasswordPayload>
   const password = payload.password
@@ -22,6 +18,22 @@ export async function PATCH(request: Request, context: RouteContext) {
       { error: "Password must be at least 6 characters." },
       { status: 400 },
     )
+  }
+
+  if (id === "me") {
+    const supabase = await createSupabaseServerClient()
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true })
+  }
+
+  const { adminSupabase, errorResponse } = await requireSuperAdmin()
+  if (errorResponse || !adminSupabase) {
+    return errorResponse
   }
 
   const { error } = await adminSupabase.auth.admin.updateUserById(id, {

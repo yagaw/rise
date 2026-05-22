@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import {
+  createSupabaseAdminClient,
   createSupabaseServerClient,
   organizationsTable,
 } from "@/lib/supabase/server"
@@ -7,7 +8,7 @@ import { Organization } from "@/types/organization"
 import { sanitizeOrganizationPayload } from "@/utils/organizationPayload"
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
 
   const { data, error } = await supabase
     .from(organizationsTable)

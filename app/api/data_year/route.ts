@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import {
+  createSupabaseAdminClient,
   createSupabaseServerClient,
   dataYearTable,
 } from "@/lib/supabase/server"
@@ -12,7 +13,7 @@ import {
 } from "@/utils/dataYearPayload"
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
 
   const { data, error } = await supabase
     .from(dataYearTable)

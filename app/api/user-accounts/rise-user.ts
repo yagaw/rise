@@ -8,7 +8,7 @@ import {
 
 type UserProfileInput = {
   userId: string
-  organizationId: string
+  organizationId?: string | null
   organizationScope: UserAccountOrganizationScope
   permissions: UserAccountPermissions
 }
@@ -31,8 +31,53 @@ function isRecoverableProfileSchemaError(error: { message?: string; code?: strin
 function buildRiseUserPayloads({
   userId,
   organizationId,
+  organizationScope,
   permissions,
 }: UserProfileInput): RiseUserPayload[] {
+  if (organizationScope === "all") {
+    return [
+      {
+        user_id: userId,
+        organization_id: null,
+        can_create: permissions.create,
+        can_read: permissions.read,
+        can_update: permissions.update,
+        can_delete: permissions.delete,
+      },
+      {
+        user_id: userId,
+        organization_id: null,
+        create: permissions.create,
+        read: permissions.read,
+        update: permissions.update,
+        delete: permissions.delete,
+      },
+      {
+        user_id: userId,
+        organization_id: null,
+        permissions,
+      },
+      {
+        user_id: userId,
+        can_create: permissions.create,
+        can_read: permissions.read,
+        can_update: permissions.update,
+        can_delete: permissions.delete,
+      },
+      {
+        user_id: userId,
+        create: permissions.create,
+        read: permissions.read,
+        update: permissions.update,
+        delete: permissions.delete,
+      },
+      {
+        user_id: userId,
+        permissions,
+      },
+    ]
+  }
+
   return [
     // Primary: with organization_id + can_* columns
     {

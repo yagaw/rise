@@ -65,8 +65,8 @@ const getOptionalBoolean = (
   if (typeof value === "number") return value === 1
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase()
-    if (["true", "1", "yes", "y"].includes(normalized)) return true
-    if (["false", "0", "no", "n"].includes(normalized)) return false
+    if (["true", "1", "yes", "y", "t", "on"].includes(normalized)) return true
+    if (["false", "0", "no", "n", "f", "off"].includes(normalized)) return false
   }
 
   return undefined
@@ -77,13 +77,13 @@ export const normalizeUserAccountPermissions = (
 ): UserAccountPermissions => {
   const permissionRecord =
     permissions && typeof permissions === "object"
-      ? (permissions as Partial<Record<keyof UserAccountPermissions, unknown>>)
+      ? (permissions as Record<string, unknown>)
       : {}
 
   return userAccountPermissionKeys.reduce<UserAccountPermissions>(
     (nextPermissions, permissionKey) => ({
       ...nextPermissions,
-      [permissionKey]: Boolean(permissionRecord[permissionKey]),
+      [permissionKey]: getOptionalBoolean(permissionRecord, permissionKey) ?? false,
     }),
     { ...emptyUserAccountPermissions },
   )
@@ -96,10 +96,23 @@ const normalizeRiseUserPermissions = (
 
   const permissions =
     riseUserProfile.permissions && typeof riseUserProfile.permissions === "object"
-      ? (riseUserProfile.permissions as Partial<
-          Record<keyof UserAccountPermissions, unknown>
-        >)
-      : {}
+      ? normalizeUserAccountPermissions(riseUserProfile.permissions)
+      : { ...emptyUserAccountPermissions }
+  const resolvePermission = (
+    canKey: string,
+    legacyKey: string,
+    jsonValue: boolean,
+  ) => {
+    const values = [
+      getOptionalBoolean(riseUserProfile, canKey),
+      getOptionalBoolean(riseUserProfile, legacyKey),
+      jsonValue,
+    ]
+
+    if (values.some((value) => value === true)) return true
+    if (values.some((value) => value === false)) return false
+    return false
+  }
   const hasPermissionColumns = [
     "can_create",
     "can_read",
@@ -119,22 +132,10 @@ const normalizeRiseUserPermissions = (
   }
 
   return {
-    create:
-      getOptionalBoolean(riseUserProfile, "can_create") ??
-      getOptionalBoolean(riseUserProfile, "create") ??
-      Boolean(permissions.create),
-    read:
-      getOptionalBoolean(riseUserProfile, "can_read") ??
-      getOptionalBoolean(riseUserProfile, "read") ??
-      Boolean(permissions.read),
-    update:
-      getOptionalBoolean(riseUserProfile, "can_update") ??
-      getOptionalBoolean(riseUserProfile, "update") ??
-      Boolean(permissions.update),
-    delete:
-      getOptionalBoolean(riseUserProfile, "can_delete") ??
-      getOptionalBoolean(riseUserProfile, "delete") ??
-      Boolean(permissions.delete),
+    create: resolvePermission("can_create", "create", permissions.create),
+    read: resolvePermission("can_read", "read", permissions.read),
+    update: resolvePermission("can_update", "update", permissions.update),
+    delete: resolvePermission("can_delete", "delete", permissions.delete),
   }
 }
 

@@ -3,7 +3,9 @@ import * as XLSX from "xlsx"
 import {
   createSupabaseAdminClient,
   createSupabaseServerClient,
+  organizationsTable,
 } from "@/lib/supabase/server"
+import { getRbacContext, requirePermission } from "@/lib/rbac"
 
 type ExcelDataRecord = {
   id: string | number
@@ -23,6 +25,14 @@ type ParsedSummary = {
 type StudentDataTypeConfig = {
   id: string
   label: string
+}
+
+type OrganizationRecord = {
+  id?: string | number | null
+  title?: string | null
+  short_title?: string | null
+  name?: string | null
+  longname?: string | null
 }
 
 const EXCEL_BUCKET = "excel_data"
@@ -102,6 +112,10 @@ function normalizeCell(value: unknown): string | number | boolean | null {
 function getCellText(value: unknown) {
   if (value === null || value === undefined) return ""
   return String(value).trim()
+}
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
 }
 
 function normalizeKey(value: string) {
@@ -637,9 +651,9 @@ function getOrganizationNames(...summaries: ParsedSummary[]) {
 
 function filterSummaryByOrganization(
   summary: ParsedSummary,
-  organization: string,
+  organizations: string[],
 ): ParsedSummary {
-  if (!organization || organization === "all") return summary
+  if (organizations.length === 0 || organizations.includes("all")) return summary
 
   const columns = Object.keys(summary.rows[0] ?? {})
   const organizationColumn = findColumn(columns, [
@@ -652,8 +666,9 @@ function filterSummaryByOrganization(
     return { ...summary, rowCount: 0, rows: [] }
   }
 
-  const rows = summary.rows.filter(
-    (row) => getCellText(row[organizationColumn]) === organization,
+  const organizationSet = new Set(organizations.map((o) => o.toLowerCase().trim()))
+  const rows = summary.rows.filter((row) =>
+    organizationSet.has(getCellText(row[organizationColumn]).toLowerCase().trim()),
   )
 
   return {
@@ -663,13 +678,20 @@ function filterSummaryByOrganization(
   }
 }
 
-async function requireUser() {
+async function requireRbacRead() {
   const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { context, errorResponse } = await getRbacContext(supabase)
 
-  return Boolean(user)
+  if (errorResponse || !context) {
+    return { errorResponse }
+  }
+
+  const permissionError = requirePermission(context, "read")
+  if (permissionError) {
+    return { errorResponse: permissionError }
+  }
+
+  return { context }
 }
 
 function listExcelRecordsByType(records: ExcelDataRecord[], dataTypeId: string) {
@@ -690,6 +712,52 @@ async function listExcelRecords(
   }
 
   return (data ?? []) as ExcelDataRecord[]
+}
+
+async function getOrganizationFilter(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  organizationId: string | null,
+  requestedOrganization: string,
+) {
+  if (!organizationId) {
+    return {
+      organization: requestedOrganization,
+      filters:
+        !requestedOrganization || requestedOrganization === "all"
+          ? []
+          : [requestedOrganization],
+    }
+  }
+
+  const { data, error } = await supabase
+    .from(organizationsTable)
+    .select("id, title, short_title")
+    .eq("id", organizationId)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load organization profile: ${error.message}`)
+  }
+
+  const organization = (data ?? null) as OrganizationRecord | null
+  const filters = uniqueValues([
+    organizationId,
+    String(organization?.short_title ?? ""),
+    String(organization?.title ?? ""),
+    String(organization?.name ?? ""),
+    String(organization?.longname ?? ""),
+  ])
+  const displayName =
+    organization?.short_title ||
+    organization?.title ||
+    organization?.name ||
+    organization?.longname ||
+    organizationId
+
+  return {
+    organization: displayName,
+    filters,
+  }
 }
 
 async function downloadExcelFile(
@@ -821,16 +889,13 @@ function toPublicSummary(
 }
 
 export async function GET(request: Request) {
-  if (!(await requireUser())) {
-    return NextResponse.json(
-      { error: "Authentication is required." },
-      { status: 401 },
-    )
-  }
+  const { context, errorResponse } = await requireRbacRead()
+
+  if (errorResponse || !context) return errorResponse
 
   const searchParams = new URL(request.url).searchParams
   const dataYearId = searchParams.get("data_year")?.trim()
-  const organization = searchParams.get("organization")?.trim() || "all"
+  const requestedOrganization = searchParams.get("organization")?.trim() || "all"
   const programKey =
     searchParams.get("program")?.trim().toLowerCase() as keyof typeof PROGRAM_CONFIG | null
   const program = programKey && programKey in PROGRAM_CONFIG ? programKey : "be"
@@ -842,6 +907,11 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createSupabaseAdminClient()
+    const organizationFilter = await getOrganizationFilter(
+      supabase,
+      context.organizationId,
+      requestedOrganization,
+    )
     const excelFiles = await listExcelRecords(supabase, dataYearId)
     const schoolRecords = programConfig.schoolDataTypeId
       ? listExcelRecordsByType(excelFiles, programConfig.schoolDataTypeId)
@@ -890,29 +960,52 @@ export async function GET(request: Request) {
         })),
       ),
     ])
-    const organizations = getOrganizationNames(
+    const organizationNames = getOrganizationNames(
       schoolSummary,
       teacherSummary,
       studentSummary,
       qleSummary,
       classroomObservationSummary,
     )
+    // For org-restricted users, cross-reference DB name variants against actual Excel
+    // org names (case-insensitive) so filtering works even when DB names differ in case
+    // or formatting from what's stored in Excel rows.
+    let resolvedFilters = organizationFilter.filters
+    if (context.organizationId && resolvedFilters.length > 0) {
+      const normalizedFilters = new Set(
+        resolvedFilters.map((f) => f.toLowerCase().trim()),
+      )
+      const matchedExcelNames = organizationNames.filter((name) =>
+        normalizedFilters.has(name.toLowerCase().trim()),
+      )
+      if (matchedExcelNames.length > 0) {
+        resolvedFilters = matchedExcelNames
+      }
+    }
+    const organizations = context.organizationId
+      ? resolvedFilters.filter((f) => organizationNames.includes(f)).length > 0
+        ? resolvedFilters.filter((f) => organizationNames.includes(f))
+        : [organizationFilter.organization]
+      : organizationNames
     const filteredSchoolSummary = filterSummaryByOrganization(
       schoolSummary,
-      organization,
+      resolvedFilters,
     )
     const filteredTeacherSummary = filterSummaryByOrganization(
       teacherSummary,
-      organization,
+      resolvedFilters,
     )
     const filteredStudentSummary = filterSummaryByOrganization(
       studentSummary,
-      organization,
+      resolvedFilters,
     )
-    const filteredQleSummary = filterSummaryByOrganization(qleSummary, organization)
+    const filteredQleSummary = filterSummaryByOrganization(
+      qleSummary,
+      resolvedFilters,
+    )
     const filteredClassroomObservationSummary = filterSummaryByOrganization(
       classroomObservationSummary,
-      organization,
+      resolvedFilters,
     )
     const schoolChart = getChartData(filteredSchoolSummary)
     const teacherChart = getChartData(filteredTeacherSummary)
@@ -920,7 +1013,7 @@ export async function GET(request: Request) {
     const studentSourceBreakdown = studentSourceSummaries.map((item) => {
       const filteredSummary = filterSummaryByOrganization(
         item.summary,
-        organization,
+        resolvedFilters,
       )
       const chartData = getChartData(filteredSummary)
 
@@ -939,7 +1032,11 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       dataYear: dataYearId,
-      organization,
+      organization: organizationFilter.organization,
+      access: {
+        organizationId: context.organizationId,
+        allOrganizations: !context.organizationId,
+      },
       organizations,
       excelFiles,
       schools: toPublicSummary({

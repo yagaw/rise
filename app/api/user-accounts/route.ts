@@ -136,7 +136,7 @@ export async function POST(request: Request) {
   try {
     const profile = await upsertRiseUserProfile(adminSupabase, {
       userId: data.user.id,
-      organizationId: scopedOrganizationId,
+      organizationId: canManageAllOrganizations ? null : scopedOrganizationId,
       organizationScope,
       permissions,
     })

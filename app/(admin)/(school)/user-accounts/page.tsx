@@ -28,13 +28,46 @@ const formatDate = (value: string | null) => {
 const searchable = (value: unknown) =>
   value === undefined || value === null ? "" : String(value).toLowerCase()
 
+const organizationName = (organization: Organization) =>
+  organization.short_title ||
+  organization.name ||
+  organization.title ||
+  organization.longname ||
+  organization.id
+
+const addOrganizationMapEntry = (
+  map: Map<string, Organization>,
+  key: unknown,
+  organization: Organization,
+) => {
+  if (key === null || key === undefined) return
+  const normalizedKey = String(key).trim()
+  if (!normalizedKey) return
+  map.set(normalizedKey, organization)
+  map.set(normalizedKey.toLowerCase(), organization)
+}
+
+const getOrganizationFromMap = (
+  map: Map<string, Organization>,
+  key: unknown,
+) => {
+  if (key === null || key === undefined) return undefined
+  const normalizedKey = String(key).trim()
+  if (!normalizedKey) return undefined
+  return map.get(normalizedKey) || map.get(normalizedKey.toLowerCase())
+}
+
 const accessLabel = (
   account: UserAccount,
   orgMap: Map<string, Organization>,
 ) => {
   if (account.canManageAllOrganizations) return "All Organizations"
-  const org = orgMap.get(account.organizationId)
-  if (org) return org.short_title || org.name || org.title || account.organizationTitle || account.organizationId
+  const organization =
+    getOrganizationFromMap(orgMap, account.organizationId) ||
+    getOrganizationFromMap(orgMap, account.organizationTitle)
+
+  if (organization) return organizationName(organization)
+
   return account.organizationTitle || account.organizationId || "-"
 }
 
@@ -91,6 +124,7 @@ function RowActions({ accountId }: { accountId: string }) {
 
 export default function UserAccountsPage() {
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
+  const [selfAccount, setSelfAccount] = useState<UserAccount | null>(null)
   const [orgMap, setOrgMap] = useState<Map<string, Organization>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -106,6 +140,23 @@ export default function UserAccountsPage() {
 
         const accountsData = (await accountsRes.json()) as UserAccount[] | { error?: string }
         if (!accountsRes.ok) {
+          if (accountsRes.status === 403) {
+            const selfRes = await fetch("/api/me/account")
+            const selfData = (await selfRes.json()) as UserAccount | { error?: string }
+
+            if (!selfRes.ok) {
+              throw new Error(
+                "error" in selfData
+                  ? selfData.error || "Failed to load account"
+                  : "Failed to load account",
+              )
+            }
+
+            setSelfAccount(selfData as UserAccount)
+            setUserAccounts([])
+            return
+          }
+
           throw new Error(
             "error" in accountsData
               ? accountsData.error || "Failed to load user accounts"
@@ -118,7 +169,13 @@ export default function UserAccountsPage() {
           const orgsData = (await orgsRes.json()) as Organization[]
           const map = new Map<string, Organization>()
           if (Array.isArray(orgsData)) {
-            for (const org of orgsData) map.set(org.id, org)
+            for (const org of orgsData) {
+              addOrganizationMapEntry(map, org.id, org)
+              addOrganizationMapEntry(map, org.title, org)
+              addOrganizationMapEntry(map, org.short_title, org)
+              addOrganizationMapEntry(map, org.name, org)
+              addOrganizationMapEntry(map, org.longname, org)
+            }
           }
           setOrgMap(map)
         }
@@ -140,13 +197,19 @@ export default function UserAccountsPage() {
     const searchLower = searchTerm.toLowerCase()
 
     return userAccounts.filter(
-      (account) =>
-        searchable(account.email).includes(searchLower) ||
-        searchable(account.displayName).includes(searchLower) ||
-        searchable(account.organizationTitle).includes(searchLower) ||
-        searchable(account.organizationId).includes(searchLower),
+      (account) => {
+        const organization = accessLabel(account, orgMap)
+
+        return (
+          searchable(account.email).includes(searchLower) ||
+          searchable(account.displayName).includes(searchLower) ||
+          searchable(organization).includes(searchLower) ||
+          searchable(account.organizationTitle).includes(searchLower) ||
+          searchable(account.organizationId).includes(searchLower)
+        )
+      },
     )
-  }, [searchTerm, userAccounts])
+  }, [orgMap, searchTerm, userAccounts])
 
   if (isLoading) {
     return (
@@ -163,6 +226,46 @@ export default function UserAccountsPage() {
     <div className="space-y-6">
       <PageBreadcrumb pageTitle="User Accounts" />
 
+      {selfAccount ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              User Account
+            </h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              View your account details and manage your password.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+              <p className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                User Name
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                {selfAccount.displayName || "-"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+              <p className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                Email
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                {selfAccount.email}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <Link href="/user-accounts/change-password/me">
+              <Button className="inline-flex items-center gap-2">
+                <LockIcon className="h-4 w-4" />
+                Change Password
+              </Button>
+            </Link>
+          </div>
+        </div>
+      ) : (
       <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -208,7 +311,7 @@ export default function UserAccountsPage() {
                   Email
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Access
+                  Organization
                 </TableCell>
                 <TableCell className="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   Permissions
@@ -258,7 +361,11 @@ export default function UserAccountsPage() {
                     <TableCell className="px-5 py-4">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${accessTagColor(account)}`}
-                        title={account.canManageAllOrganizations ? undefined : account.organizationTitle || account.organizationId}
+                        title={
+                          account.canManageAllOrganizations
+                            ? undefined
+                            : accessLabel(account, orgMap)
+                        }
                       >
                         {accessLabel(account, orgMap)}
                       </span>
@@ -290,6 +397,7 @@ export default function UserAccountsPage() {
           </Table>
         </div>
       </div>
+      )}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import {
   createSupabaseServerClient,
   teachersTable,
 } from "@/lib/supabase/server"
+import { getRbacContext, requirePermission } from "@/lib/rbac"
 import { Teacher } from "@/types/teacher"
 import {
   extractMissingColumnFromError,
@@ -14,11 +15,22 @@ import {
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
+  const { context, errorResponse } = await getRbacContext(supabase)
 
-  const { data, error } = await supabase
-    .from(teachersTable)
+  if (errorResponse || !context) return errorResponse
+
+  const permissionError = requirePermission(context, "read")
+  if (permissionError) return permissionError
+
+  let query = supabase.from(teachersTable)
     .select("*")
     .order("created_at", { ascending: false })
+
+  if (context.organizationId) {
+    query = query.eq("org", context.organizationId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -31,8 +43,19 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient()
+  const { context, errorResponse } = await getRbacContext(supabase)
+
+  if (errorResponse || !context) return errorResponse
+
+  const permissionError = requirePermission(context, "create")
+  if (permissionError) return permissionError
+
   const payload = (await request.json()) as Partial<Teacher>
   let sanitizedPayload = mapTeacherToDatabase(sanitizeTeacherPayload(payload))
+
+  if (context.organizationId) {
+    sanitizedPayload.org = context.organizationId
+  }
 
   for (let attempt = 0; attempt < 10; attempt++) {
     const { data, error } = await supabase

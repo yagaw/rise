@@ -3,6 +3,7 @@ import {
   createSupabaseServerClient,
   teachersTable,
 } from "@/lib/supabase/server"
+import { getRbacContext, requirePermission } from "@/lib/rbac"
 import { Teacher } from "@/types/teacher"
 import {
   extractMissingColumnFromError,
@@ -19,11 +20,22 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params
   const supabase = await createSupabaseServerClient()
+  const { context: rbacContext, errorResponse } = await getRbacContext(supabase)
 
-  const { data, error } = await supabase
-    .from(teachersTable)
+  if (errorResponse || !rbacContext) return errorResponse
+
+  const permissionError = requirePermission(rbacContext, "read")
+  if (permissionError) return permissionError
+
+  let query = supabase.from(teachersTable)
     .select("*")
     .eq("id", id)
+
+  if (rbacContext.organizationId) {
+    query = query.eq("org", rbacContext.organizationId)
+  }
+
+  const { data, error } = await query
     .single()
 
   if (error) {
@@ -36,15 +48,31 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params
   const supabase = await createSupabaseServerClient()
+  const { context: rbacContext, errorResponse } = await getRbacContext(supabase)
+
+  if (errorResponse || !rbacContext) return errorResponse
+
+  const permissionError = requirePermission(rbacContext, "update")
+  if (permissionError) return permissionError
+
   const payload = (await request.json()) as Partial<Teacher>
   let sanitizedPayload = mapTeacherToDatabase(sanitizeTeacherPayload(payload))
 
+  if (rbacContext.organizationId) {
+    sanitizedPayload.org = rbacContext.organizationId
+  }
+
   for (let attempt = 0; attempt < 10; attempt++) {
-    const { data, error } = await supabase
-      .from(teachersTable)
+    let query = supabase.from(teachersTable)
       .update(sanitizedPayload)
       .eq("id", id)
       .select("*")
+
+    if (rbacContext.organizationId) {
+      query = query.eq("org", rbacContext.organizationId)
+    }
+
+    const { data, error } = await query
       .single()
 
     if (!error) {
@@ -69,8 +97,20 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params
   const supabase = await createSupabaseServerClient()
+  const { context: rbacContext, errorResponse } = await getRbacContext(supabase)
 
-  const { error } = await supabase.from(teachersTable).delete().eq("id", id)
+  if (errorResponse || !rbacContext) return errorResponse
+
+  const permissionError = requirePermission(rbacContext, "delete")
+  if (permissionError) return permissionError
+
+  let query = supabase.from(teachersTable).delete().eq("id", id)
+
+  if (rbacContext.organizationId) {
+    query = query.eq("org", rbacContext.organizationId)
+  }
+
+  const { error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

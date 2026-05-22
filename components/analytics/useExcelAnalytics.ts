@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react"
 
 export type ExcelAnalyticsData = {
+  dataYear?: string
+  organization?: string
+  access?: {
+    organizationId: string | null
+    allOrganizations: boolean
+  }
   excelFiles?: Array<{
     id: string | number
     data_type?: string | number

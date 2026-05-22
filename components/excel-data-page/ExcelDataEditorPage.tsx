@@ -30,6 +30,26 @@ type SaveResponse = {
   error?: string
 }
 
+type AccessResponse = {
+  organizationId?: string | number | null
+  allOrganizations?: boolean
+  permissions?: {
+    create?: boolean
+    read?: boolean
+    update?: boolean
+    delete?: boolean
+  }
+  error?: string
+}
+
+type OrganizationOption = {
+  id?: string | number | null
+  title?: string | null
+  short_title?: string | null
+  name?: string | null
+  longname?: string | null
+}
+
 type ExcelDataFilter = {
   key: string
   label: string
@@ -40,11 +60,14 @@ type AvailableExcelDataFilter = ExcelDataFilter & {
   column: string
 }
 
+const ORGANIZATION_FILTER_KEY = "organization"
+const ORGANIZATION_CANDIDATES = ["organization", "org"]
+
 const FILTER_FIELDS = [
   {
-    key: "organization",
+    key: ORGANIZATION_FILTER_KEY,
     label: "Organization",
-    candidates: ["organization", "org"],
+    candidates: ORGANIZATION_CANDIDATES,
   },
   {
     key: "school_name",
@@ -102,6 +125,10 @@ function findColumn(columns: string[], candidates: string[]) {
   return null
 }
 
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
+}
+
 type ExcelDataEditorPageProps = {
   pageTitle: string
   apiPath: string
@@ -137,6 +164,15 @@ export default function ExcelDataEditorPage({
   const [rows, setRows] = useState<ExcelRow[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({})
+  const [restrictedOrganizationId, setRestrictedOrganizationId] = useState<string | null>(
+    null,
+  )
+  const [restrictedOrganizationValues, setRestrictedOrganizationValues] = useState<
+    string[]
+  >([])
+  const [permissions, setPermissions] = useState<AccessResponse["permissions"] | null>(
+    null,
+  )
   const [currentPage, setCurrentPage] = useState(1)
   const [rowEditorOpen, setRowEditorOpen] = useState(false)
   const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null)
@@ -164,6 +200,68 @@ export default function ExcelDataEditorPage({
     }
 
     loadDataYears()
+  }, [])
+
+  useEffect(() => {
+    const loadAccess = async () => {
+      try {
+        const response = await fetch("/api/me/access")
+        const body = (await response.json()) as AccessResponse
+
+        if (!response.ok) {
+          throw new Error(body.error || "Failed to load access profile.")
+        }
+
+        const organizationId =
+          body.organizationId === null || body.organizationId === undefined
+            ? ""
+            : String(body.organizationId).trim()
+
+        setPermissions(body.permissions ?? null)
+
+        if (body.allOrganizations || !organizationId) {
+          setRestrictedOrganizationId(null)
+          setRestrictedOrganizationValues([])
+          return
+        }
+
+        setRestrictedOrganizationId(organizationId)
+
+        try {
+          const organizationsResponse = await fetch("/api/organizations")
+
+          if (!organizationsResponse.ok) {
+            throw new Error("Failed to load organizations.")
+          }
+
+          const organizations =
+            (await organizationsResponse.json()) as OrganizationOption[]
+          const matchedOrganization = organizations.find(
+            (organization) => String(organization.id ?? "").trim() === organizationId,
+          )
+
+          setRestrictedOrganizationValues(
+            uniqueValues([
+              organizationId,
+              String(matchedOrganization?.short_title ?? ""),
+              String(matchedOrganization?.title ?? ""),
+              String(matchedOrganization?.name ?? ""),
+              String(matchedOrganization?.longname ?? ""),
+            ]),
+          )
+        } catch (organizationError) {
+          console.error(organizationError)
+          setRestrictedOrganizationValues([organizationId])
+        }
+      } catch (loadError) {
+        console.error(loadError)
+        setRestrictedOrganizationId(null)
+        setRestrictedOrganizationValues([])
+        setPermissions(null)
+      }
+    }
+
+    loadAccess()
   }, [])
 
   useEffect(() => {
@@ -229,13 +327,97 @@ export default function ExcelDataEditorPage({
     return filters
   }, [columns])
 
+  const organizationColumn = useMemo(
+    () => findColumn(columns, ORGANIZATION_CANDIDATES),
+    [columns],
+  )
+
+  const isRestrictedOrganizationColumn = (column: string) =>
+    Boolean(
+      restrictedOrganizationId &&
+        organizationColumn &&
+        column.trim().toLowerCase() === organizationColumn.trim().toLowerCase(),
+    )
+
+  const organizationColumnValues = useMemo(() => {
+    if (!organizationColumn) return []
+
+    return uniqueValues(
+      rows.map((row) => getCellText(row[organizationColumn]).trim()),
+    )
+  }, [organizationColumn, rows])
+
+  const restrictedOrganizationValue = useMemo(() => {
+    if (!restrictedOrganizationId) return null
+
+    const aliases = restrictedOrganizationValues.length
+      ? restrictedOrganizationValues
+      : [restrictedOrganizationId]
+
+    return (
+      aliases.find((value) => organizationColumnValues.includes(value)) ??
+      aliases[0] ??
+      restrictedOrganizationId
+    )
+  }, [
+    organizationColumnValues,
+    restrictedOrganizationId,
+    restrictedOrganizationValues,
+  ])
+
+  const restrictedOrganizationValueSet = useMemo(() => {
+    if (!restrictedOrganizationId) return new Set<string>()
+
+    return new Set(
+      restrictedOrganizationValues.length
+        ? restrictedOrganizationValues
+        : [restrictedOrganizationId],
+    )
+  }, [restrictedOrganizationId, restrictedOrganizationValues])
+
+  useEffect(() => {
+    if (!restrictedOrganizationValue) return
+
+    setSelectedFilters((currentFilters) => {
+      if (currentFilters[ORGANIZATION_FILTER_KEY] === restrictedOrganizationValue) {
+        return currentFilters
+      }
+
+      return {
+        ...currentFilters,
+        [ORGANIZATION_FILTER_KEY]: restrictedOrganizationValue,
+      }
+    })
+    setCurrentPage(1)
+  }, [restrictedOrganizationValue])
+
+  const scopedRows = useMemo(
+    () =>
+      rows
+        .map((row, index) => ({ row, index }))
+        .filter(({ row }) => {
+          if (!restrictedOrganizationId) return true
+          if (!organizationColumn) return false
+
+          return restrictedOrganizationValueSet.has(
+            getCellText(row[organizationColumn]).trim(),
+          )
+        }),
+    [
+      organizationColumn,
+      restrictedOrganizationId,
+      restrictedOrganizationValueSet,
+      rows,
+    ],
+  )
+
   const filterOptions = useMemo(() => {
     const options: Record<string, string[]> = {}
 
     availableFilters.forEach((filter) => {
       const values = new Set<string>()
 
-      rows.forEach((row) => {
+      scopedRows.forEach(({ row }) => {
         const value = getCellText(row[filter.column]).trim()
 
         if (value) {
@@ -247,14 +429,16 @@ export default function ExcelDataEditorPage({
     })
 
     return options
-  }, [availableFilters, rows])
+  }, [availableFilters, scopedRows])
 
   const filteredRows = useMemo(
     () =>
-      rows
-        .map((row, index) => ({ row, index }))
-        .filter(({ row }) => {
+      scopedRows.filter(({ row }) => {
           const matchesFilters = availableFilters.every((filter) => {
+            if (restrictedOrganizationId && filter.key === ORGANIZATION_FILTER_KEY) {
+              return true
+            }
+
             const selectedValue = selectedFilters[filter.key]
 
             if (!selectedValue) return true
@@ -264,20 +448,33 @@ export default function ExcelDataEditorPage({
 
           return matchesFilters && rowMatchesSearch(row, columns, searchTerm)
         }),
-    [availableFilters, columns, rows, searchTerm, selectedFilters],
+    [
+      availableFilters,
+      columns,
+      restrictedOrganizationId,
+      scopedRows,
+      searchTerm,
+      selectedFilters,
+    ],
   )
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / itemsPerPage))
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = Math.min(startIndex + itemsPerPage, filteredRows.length)
   const visibleRows = filteredRows.slice(startIndex, endIndex)
+  const canUpdateWorkbook = permissions?.update !== false
+  const canCreateRows = permissions?.create !== false && canUpdateWorkbook
 
   const clearWorkbook = () => {
     setExcelFile(null)
     setColumns([])
     setRows([])
     setSearchTerm("")
-    setSelectedFilters({})
+    setSelectedFilters(
+      restrictedOrganizationValue
+        ? { [ORGANIZATION_FILTER_KEY]: restrictedOrganizationValue }
+        : {},
+    )
     setCurrentPage(1)
     setRowEditorOpen(false)
     setEditingRowIndex(null)
@@ -338,11 +535,15 @@ export default function ExcelDataEditorPage({
 
   const buildEmptyRow = () =>
     columns.reduce<ExcelRow>((row, column) => {
-      row[column] = ""
+      row[column] = isRestrictedOrganizationColumn(column)
+        ? restrictedOrganizationValue
+        : ""
       return row
     }, {})
 
   const openAddRowEditor = () => {
+    if (!canCreateRows) return
+
     setEditingRowIndex(null)
     setDraftRow(buildEmptyRow())
     setRowEditorOpen(true)
@@ -363,24 +564,36 @@ export default function ExcelDataEditorPage({
   }
 
   const handleDraftChange = (column: string, value: string) => {
+    if (isRestrictedOrganizationColumn(column)) return
+
     setDraftRow((currentDraft) => ({ ...currentDraft, [column]: value }))
     setSuccessMessage("")
   }
 
   const handleFilterChange = (filterKey: string, value: string) => {
+    if (restrictedOrganizationId && filterKey === ORGANIZATION_FILTER_KEY) return
+
     setSelectedFilters((currentFilters) => ({ ...currentFilters, [filterKey]: value }))
     setCurrentPage(1)
   }
 
   const clearFilters = () => {
-    setSelectedFilters({})
+    setSelectedFilters(
+      restrictedOrganizationValue
+        ? { [ORGANIZATION_FILTER_KEY]: restrictedOrganizationValue }
+        : {},
+    )
     setSearchTerm("")
     setCurrentPage(1)
   }
 
   const handleSubmitRowEditor = () => {
+    if (editingRowIndex === null && !canCreateRows) return
+
     const normalizedDraft = columns.reduce<ExcelRow>((row, column) => {
-      row[column] = draftRow[column] ?? ""
+      row[column] = isRestrictedOrganizationColumn(column)
+        ? restrictedOrganizationValue
+        : draftRow[column] ?? ""
       return row
     }, {})
 
@@ -402,6 +615,8 @@ export default function ExcelDataEditorPage({
   }
 
   const handleSave = async () => {
+    if (!canUpdateWorkbook) return
+
     if (!excelFile?.id) {
       setError("Load an Excel file before saving.")
       return
@@ -555,7 +770,10 @@ export default function ExcelDataEditorPage({
                   {excelFile.name || fileFallbackName}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Data year: {selectedDataYearLabel} | Rows: {rows.length}
+                  Data year: {selectedDataYearLabel} | Rows: {filteredRows.length}
+                  {restrictedOrganizationValue
+                    ? ` | Organization: ${restrictedOrganizationValue}`
+                    : ""}
                 </p>
               </div>
 
@@ -570,54 +788,77 @@ export default function ExcelDataEditorPage({
                   }}
                   className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 sm:w-80"
                 />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={openAddRowEditor}
-                  className="w-full sm:w-auto"
-                >
-                  Add Row
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={saving}
-                  isLoading={saving}
-                  className="w-full sm:w-auto"
-                >
-                  Save Excel
-                </Button>
+                {canCreateRows && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={openAddRowEditor}
+                    className="w-full sm:w-auto"
+                  >
+                    Add Row
+                  </Button>
+                )}
+                {canUpdateWorkbook && (
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving}
+                    isLoading={saving}
+                    className="w-full sm:w-auto"
+                  >
+                    Save Excel
+                  </Button>
+                )}
               </div>
 
               {availableFilters.length > 0 && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {availableFilters.map((filter) => (
-                    <div key={filter.key} className="min-w-0">
-                      <label
-                        htmlFor={`${filterIdPrefix}-filter-${filter.key}`}
-                        className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400"
-                      >
-                        {filter.label}
-                      </label>
-                      <select
-                        id={`${filterIdPrefix}-filter-${filter.key}`}
-                        value={selectedFilters[filter.key] ?? ""}
-                        onChange={(event) =>
-                          handleFilterChange(filter.key, event.target.value)
-                        }
-                        className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
-                      >
-                        <option value="" className="dark:bg-gray-900">
-                          All {filter.label}
-                        </option>
-                        {(filterOptions[filter.key] ?? []).map((option) => (
-                          <option key={option} value={option} className="dark:bg-gray-900">
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
+                  {availableFilters.map((filter) => {
+                    const lockedOrganizationFilter =
+                      restrictedOrganizationValue &&
+                      filter.key === ORGANIZATION_FILTER_KEY
+
+                    return (
+                      <div key={filter.key} className="min-w-0">
+                        <label
+                          htmlFor={`${filterIdPrefix}-filter-${filter.key}`}
+                          className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                        >
+                          {filter.label}
+                        </label>
+                        {lockedOrganizationFilter ? (
+                          <div
+                            id={`${filterIdPrefix}-filter-${filter.key}`}
+                            className="flex h-10 w-full items-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-300"
+                          >
+                            {restrictedOrganizationValue}
+                          </div>
+                        ) : (
+                          <select
+                            id={`${filterIdPrefix}-filter-${filter.key}`}
+                            value={selectedFilters[filter.key] ?? ""}
+                            onChange={(event) =>
+                              handleFilterChange(filter.key, event.target.value)
+                            }
+                            className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+                          >
+                            <option value="" className="dark:bg-gray-900">
+                              All {filter.label}
+                            </option>
+                            {(filterOptions[filter.key] ?? []).map((option) => (
+                              <option
+                                key={option}
+                                value={option}
+                                className="dark:bg-gray-900"
+                              >
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
@@ -771,7 +1012,8 @@ export default function ExcelDataEditorPage({
                       id={`row-field-${column}`}
                       value={getCellText(draftRow[column])}
                       onChange={(event) => handleDraftChange(column, event.target.value)}
-                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+                      disabled={isRestrictedOrganizationColumn(column)}
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 disabled:bg-gray-50 disabled:text-gray-500 disabled:opacity-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800 dark:disabled:bg-gray-800/50 dark:disabled:text-gray-400"
                     />
                   </div>
                 ))}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient, teesTable } from "@/lib/supabase/server"
+import { getRbacContext, requirePermission } from "@/lib/rbac"
 import { TeesStudent } from "@/types/teesStudent"
 import {
   hasTeesRequiredFields,
@@ -12,11 +13,22 @@ import {
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
+  const { context, errorResponse } = await getRbacContext(supabase)
 
-  const { data, error } = await supabase
-    .from(teesTable)
+  if (errorResponse || !context) return errorResponse
+
+  const permissionError = requirePermission(context, "read")
+  if (permissionError) return permissionError
+
+  let query = supabase.from(teesTable)
     .select("*")
     .order("created_at", { ascending: false })
+
+  if (context.organizationId) {
+    query = query.eq("org", context.organizationId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -29,10 +41,21 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient()
+  const { context, errorResponse } = await getRbacContext(supabase)
+
+  if (errorResponse || !context) return errorResponse
+
+  const permissionError = requirePermission(context, "create")
+  if (permissionError) return permissionError
+
   const allowNullImport =
     new URL(request.url).searchParams.get("allow_null_import") === "1"
   const payload = (await request.json()) as Partial<TeesStudent>
   let sanitizedPayload = mapTeesToDatabase(sanitizeTeesPayload(payload))
+
+  if (context.organizationId) {
+    sanitizedPayload.org = context.organizationId
+  }
 
   if (!allowNullImport && !hasTeesRequiredFields(payload)) {
     return NextResponse.json(

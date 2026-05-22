@@ -100,7 +100,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const profile = await upsertRiseUserProfile(adminSupabase, {
       userId: id,
-      organizationId,
+      organizationId: canManageAllOrganizations ? null : organizationId,
       organizationScope,
       permissions,
     })
