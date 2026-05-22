@@ -12,6 +12,7 @@ export const dataYearTable = process.env.SUPABASE_DATA_YEAR_TABLE || "data_year"
 export const dataTypeTable = process.env.SUPABASE_DATA_TYPE_TABLE || "data_type"
 export const organizationsTable =
   process.env.SUPABASE_ORGANIZATIONS_TABLE || "organization"
+export const riseUserTable = process.env.SUPABASE_RISE_USER_TABLE || "rise_user"
 export const techerPositionTable = "techer_position"
 
 export const createSupabaseServerClient = async () => {

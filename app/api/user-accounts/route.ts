@@ -9,6 +9,10 @@ import {
   mapSupabaseUserToUserAccount,
   userAccountPermissionKeys,
 } from "@/utils/userAccount"
+import {
+  listRiseUserProfiles,
+  upsertRiseUserProfile,
+} from "./rise-user"
 
 export async function GET() {
   const { adminSupabase, errorResponse } = await requireSuperAdmin()
@@ -25,7 +29,25 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data.users.map(mapSupabaseUserToUserAccount))
+  try {
+    const profilesByUserId = await listRiseUserProfiles(
+      adminSupabase,
+      data.users.map((user) => user.id),
+    )
+
+    return NextResponse.json(
+      data.users.map((user) =>
+        mapSupabaseUserToUserAccount(user, profilesByUserId.get(user.id)),
+      ),
+    )
+  } catch (profileError) {
+    const message =
+      profileError instanceof Error
+        ? profileError.message
+        : "Failed to load rise_user profiles."
+
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
@@ -111,7 +133,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(mapSupabaseUserToUserAccount(data.user), {
-    status: 201,
-  })
+  try {
+    const profile = await upsertRiseUserProfile(adminSupabase, {
+      userId: data.user.id,
+      organizationId: scopedOrganizationId,
+      organizationScope,
+      permissions,
+    })
+
+    return NextResponse.json(mapSupabaseUserToUserAccount(data.user, profile), {
+      status: 201,
+    })
+  } catch (profileError) {
+    await adminSupabase.auth.admin.deleteUser(data.user.id)
+
+    const message =
+      profileError instanceof Error
+        ? profileError.message
+        : "Failed to link user to rise_user."
+
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

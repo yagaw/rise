@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import Button from "@/components/ui/button/Button"
 import {
@@ -11,13 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { LockIcon, PencilIcon, PlusIcon } from "@/icons"
+import { PencilIcon, LockIcon, PlusIcon, HorizontaLDots } from "@/icons"
 import { UserAccount } from "@/types/userAccount"
+import { Organization } from "@/types/organization"
 
 const formatDate = (value: string | null) => {
-  if (!value) {
-    return "-"
-  }
+  if (!value) return "-"
 
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
@@ -28,25 +28,100 @@ const formatDate = (value: string | null) => {
 const searchable = (value: unknown) =>
   value === undefined || value === null ? "" : String(value).toLowerCase()
 
+const accessLabel = (
+  account: UserAccount,
+  orgMap: Map<string, Organization>,
+) => {
+  if (account.canManageAllOrganizations) return "All Organizations"
+  const org = orgMap.get(account.organizationId)
+  if (org) return org.short_title || org.name || org.title || account.organizationTitle || account.organizationId
+  return account.organizationTitle || account.organizationId || "-"
+}
+
+const accessTagColor = (account: UserAccount) => {
+  if (account.canManageAllOrganizations)
+    return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+  return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+}
+
+function RowActions({ accountId }: { accountId: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+        aria-label="Row actions"
+      >
+        <HorizontaLDots className="h-5 w-5" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 w-44 rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <button
+            onClick={() => { setOpen(false); router.push(`/user-accounts/edit/${accountId}`) }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <PencilIcon className="h-4 w-4 text-gray-400" />
+            Edit Account
+          </button>
+          <button
+            onClick={() => { setOpen(false); router.push(`/user-accounts/change-password/${accountId}`) }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <LockIcon className="h-4 w-4 text-gray-400" />
+            Change Password
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function UserAccountsPage() {
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
+  const [orgMap, setOrgMap] = useState<Map<string, Organization>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [message, setMessage] = useState("")
 
   useEffect(() => {
-    const fetchUserAccounts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("/api/user-accounts")
-        const data = (await response.json()) as UserAccount[] | { error?: string }
+        const [accountsRes, orgsRes] = await Promise.all([
+          fetch("/api/user-accounts"),
+          fetch("/api/organizations"),
+        ])
 
-        if (!response.ok) {
+        const accountsData = (await accountsRes.json()) as UserAccount[] | { error?: string }
+        if (!accountsRes.ok) {
           throw new Error(
-            "error" in data ? data.error || "Failed to load user accounts" : "",
+            "error" in accountsData
+              ? accountsData.error || "Failed to load user accounts"
+              : "",
           )
         }
+        setUserAccounts(Array.isArray(accountsData) ? accountsData : [])
 
-        setUserAccounts(Array.isArray(data) ? data : [])
+        if (orgsRes.ok) {
+          const orgsData = (await orgsRes.json()) as Organization[]
+          const map = new Map<string, Organization>()
+          if (Array.isArray(orgsData)) {
+            for (const org of orgsData) map.set(org.id, org)
+          }
+          setOrgMap(map)
+        }
       } catch (error) {
         setMessage(
           error instanceof Error
@@ -58,7 +133,7 @@ export default function UserAccountsPage() {
       }
     }
 
-    fetchUserAccounts()
+    fetchData()
   }, [])
 
   const filteredUserAccounts = useMemo(() => {
@@ -167,18 +242,26 @@ export default function UserAccountsPage() {
                     key={account.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   >
-                    <TableCell className="px-5 py-4 text-sm text-gray-900 dark:text-white">
-                      {account.displayName || "-"}
+                    <TableCell className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
+                          {(account.displayName || account.email || "?").charAt(0).toUpperCase()}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {account.displayName || "-"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
                       {account.email}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-                      {account.canManageAllOrganizations
-                        ? "All Organizations"
-                        : account.organizationTitle ||
-                          account.organizationId ||
-                          "-"}
+                    <TableCell className="px-5 py-4">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${accessTagColor(account)}`}
+                        title={account.canManageAllOrganizations ? undefined : account.organizationTitle || account.organizationId}
+                      >
+                        {accessLabel(account, orgMap)}
+                      </span>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
                       <div className="flex flex-wrap gap-1.5">
@@ -186,7 +269,7 @@ export default function UserAccountsPage() {
                           ? enabledPermissions.map((permission) => (
                               <span
                                 key={permission}
-                                className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium capitalize text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                                className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium capitalize text-green-800 dark:bg-green-900/30 dark:text-green-300"
                               >
                                 {permission}
                               </span>
@@ -194,24 +277,11 @@ export default function UserAccountsPage() {
                           : "-"}
                       </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
+                    <TableCell className="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {formatDate(account.lastSignInAt)}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <Link href={`/user-accounts/edit/${account.id}`}>
-                          <button className="rounded p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20">
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                        </Link>
-                        <Link
-                          href={`/user-accounts/change-password/${account.id}`}
-                        >
-                          <button className="rounded p-1 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800">
-                            <LockIcon className="h-4 w-4" />
-                          </button>
-                        </Link>
-                      </div>
+                      <RowActions accountId={account.id} />
                     </TableCell>
                   </TableRow>
                 )

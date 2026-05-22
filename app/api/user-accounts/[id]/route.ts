@@ -5,6 +5,10 @@ import {
   mapSupabaseUserToUserAccount,
   normalizeUserAccountPermissions,
 } from "@/utils/userAccount"
+import {
+  getRiseUserProfile,
+  upsertRiseUserProfile,
+} from "../rise-user"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -23,7 +27,18 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(mapSupabaseUserToUserAccount(data.user))
+  try {
+    const profile = await getRiseUserProfile(adminSupabase, id)
+
+    return NextResponse.json(mapSupabaseUserToUserAccount(data.user, profile))
+  } catch (profileError) {
+    const message =
+      profileError instanceof Error
+        ? profileError.message
+        : "Failed to load rise_user profile."
+
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -82,5 +97,21 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(mapSupabaseUserToUserAccount(data.user))
+  try {
+    const profile = await upsertRiseUserProfile(adminSupabase, {
+      userId: id,
+      organizationId,
+      organizationScope,
+      permissions,
+    })
+
+    return NextResponse.json(mapSupabaseUserToUserAccount(data.user, profile))
+  } catch (profileError) {
+    const message =
+      profileError instanceof Error
+        ? profileError.message
+        : "Failed to save rise_user profile."
+
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

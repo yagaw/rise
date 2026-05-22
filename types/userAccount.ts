@@ -10,6 +10,20 @@ export interface UserAccountPermissions {
   delete: boolean
 }
 
+export type RiseUserProfile = Record<string, unknown> & {
+  user_id?: string | null
+  organization_id?: string | null
+  permissions?: Partial<UserAccountPermissions> | null
+  can_create?: boolean | null
+  can_read?: boolean | null
+  can_update?: boolean | null
+  can_delete?: boolean | null
+  create?: boolean | null
+  read?: boolean | null
+  update?: boolean | null
+  delete?: boolean | null
+}
+
 export interface CreateUserAccountPayload {
   email: string
   password: string

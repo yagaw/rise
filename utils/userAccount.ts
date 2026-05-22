@@ -1,5 +1,6 @@
 import { User } from "@supabase/supabase-js"
 import {
+  RiseUserProfile,
   UserAccount,
   UserAccountOrganizationScope,
   UserAccountPermissions,
@@ -41,6 +42,36 @@ const getMetadataBoolean = (
   key: string,
 ): boolean => metadata[key] === true
 
+const getRecordValue = (
+  record: Record<string, unknown> | null | undefined,
+  key: string,
+) => record?.[key]
+
+const getRecordString = (
+  record: Record<string, unknown> | null | undefined,
+  key: string,
+): string => {
+  const value = getRecordValue(record, key)
+  return value === null || value === undefined ? "" : String(value)
+}
+
+const getOptionalBoolean = (
+  record: Record<string, unknown> | null | undefined,
+  key: string,
+): boolean | undefined => {
+  const value = getRecordValue(record, key)
+
+  if (typeof value === "boolean") return value
+  if (typeof value === "number") return value === 1
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase()
+    if (["true", "1", "yes", "y"].includes(normalized)) return true
+    if (["false", "0", "no", "n"].includes(normalized)) return false
+  }
+
+  return undefined
+}
+
 export const normalizeUserAccountPermissions = (
   permissions: unknown,
 ): UserAccountPermissions => {
@@ -58,7 +89,59 @@ export const normalizeUserAccountPermissions = (
   )
 }
 
-export const mapSupabaseUserToUserAccount = (user: User): UserAccount => {
+const normalizeRiseUserPermissions = (
+  riseUserProfile?: RiseUserProfile | null,
+): UserAccountPermissions | null => {
+  if (!riseUserProfile) return null
+
+  const permissions =
+    riseUserProfile.permissions && typeof riseUserProfile.permissions === "object"
+      ? (riseUserProfile.permissions as Partial<
+          Record<keyof UserAccountPermissions, unknown>
+        >)
+      : {}
+  const hasPermissionColumns = [
+    "can_create",
+    "can_read",
+    "can_update",
+    "can_delete",
+    "create",
+    "read",
+    "update",
+    "delete",
+  ].some((key) => Object.prototype.hasOwnProperty.call(riseUserProfile, key))
+  const hasPermissionsJson =
+    riseUserProfile.permissions !== null &&
+    riseUserProfile.permissions !== undefined
+
+  if (!hasPermissionColumns && !hasPermissionsJson) {
+    return null
+  }
+
+  return {
+    create:
+      getOptionalBoolean(riseUserProfile, "can_create") ??
+      getOptionalBoolean(riseUserProfile, "create") ??
+      Boolean(permissions.create),
+    read:
+      getOptionalBoolean(riseUserProfile, "can_read") ??
+      getOptionalBoolean(riseUserProfile, "read") ??
+      Boolean(permissions.read),
+    update:
+      getOptionalBoolean(riseUserProfile, "can_update") ??
+      getOptionalBoolean(riseUserProfile, "update") ??
+      Boolean(permissions.update),
+    delete:
+      getOptionalBoolean(riseUserProfile, "can_delete") ??
+      getOptionalBoolean(riseUserProfile, "delete") ??
+      Boolean(permissions.delete),
+  }
+}
+
+export const mapSupabaseUserToUserAccount = (
+  user: User,
+  riseUserProfile?: RiseUserProfile | null,
+): UserAccount => {
   const appMetadata = user.app_metadata || {}
   const userMetadata = user.user_metadata || {}
   const metadataRole =
@@ -68,6 +151,7 @@ export const mapSupabaseUserToUserAccount = (user: User): UserAccount => {
     ? (metadataRole as UserAccountRole)
     : "CRED"
   const organizationId =
+    getRecordString(riseUserProfile, "organization_id") ||
     getMetadataValue(appMetadata, "organization_id") ||
     getMetadataValue(userMetadata, "organization_id")
   const metadataOrganizationScope =
@@ -94,9 +178,11 @@ export const mapSupabaseUserToUserAccount = (user: User): UserAccount => {
       ? "All Organizations"
       : getMetadataValue(userMetadata, "organization_title"),
     canManageAllOrganizations,
-    permissions: normalizeUserAccountPermissions(
-      appMetadata.permissions || userMetadata.permissions,
-    ),
+    permissions:
+      normalizeRiseUserPermissions(riseUserProfile) ??
+      normalizeUserAccountPermissions(
+        appMetadata.permissions || userMetadata.permissions,
+      ),
     createdAt: user.created_at || null,
     lastSignInAt: user.last_sign_in_at || null,
   }

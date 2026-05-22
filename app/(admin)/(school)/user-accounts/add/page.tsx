@@ -254,17 +254,6 @@ export default function AddUserAccountPage() {
             />
           </div>
 
-          <div>
-            <Label htmlFor="role">Role</Label>
-            <select
-              id="role"
-              value={formData.role}
-              onChange={(event) => handleInputChange("role", event.target.value)}
-              className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            >
-              <option value="CRED">CRED</option>
-            </select>
-          </div>
         </div>
 
         <div className="mt-8 space-y-4">

@@ -11,10 +11,11 @@ import {
   BoxCubeIcon,
   DownloadIcon,
   ListIcon,
+  UserCircleIcon,
 } from "../icons/index"
 
 
-type MenuType = "overview" | "be" | "eccd" | "ie" | "admin"
+type MenuType = "overview" | "be" | "student" | "eccd" | "ie" | "admin"
 
 type NavItem = {
   name: string
@@ -41,7 +42,18 @@ const beItems: NavItem[] = [
       { name: "Teacher", path: "/teachers" },
       { name: "Classroom Observation", path: "/classroom-observation" },
       { name: "School QLE", path: "/school-qle" },
-      { name: "Student", path: "/school_students" },
+    ],
+  },
+]
+
+const studentItems: NavItem[] = [
+  {
+    icon: <UserCircleIcon />,
+    name: "Student",
+    subItems: [
+      { name: "TEES", path: "/school_students" },
+      { name: "NFE", path: "/nfe-student" },
+      { name: "Women Literacy", path: "/women-literacy" },
     ],
   },
 ]
@@ -55,7 +67,7 @@ const eccdItems: NavItem[] = [
       { name: "Teacher", path: "/eccd-teacher" },
       { name: "Classroom Observation", path: "/eccd-co" },
       { name: "School QLE", path: "/eccd-qle" },
-      { name: "Student", path: "/eccd" },
+      { name: "Student", path: "/eccd-student" },
     ],
   },
 ]
@@ -67,7 +79,7 @@ const ieItems: NavItem[] = [
     subItems: [
       { name: "School", path: "/ie-school" },
       { name: "Teacher", path: "/ie-teacher" },
-      { name: "Classroom Observation", path: "/ie-classroom-observation" },
+      { name: "Classroom Observation", path: "/ie-co" },
       { name: "School QLE", path: "/ie-qle" },
       { name: "Student", path: "/ie-student" },
     ],
@@ -90,7 +102,6 @@ const adminItems: NavItem[] = [
     name: "Master Data",
     subItems: [
       { name: "Organizations", path: "/organizations" },
-      { name: "User Accounts", path: "/user-accounts" },
       { name: "State / Region", path: "/state_region" },
       { name: "Townships", path: "/ts_mimu" },
       { name: "Subjects", path: "/subjects" },
@@ -101,11 +112,17 @@ const adminItems: NavItem[] = [
           { name: "Data Year", path: "/data_year" },
     ],
   },
+  {
+    icon: <UserCircleIcon />,
+    name: "User Accounts",
+    path: "/user-accounts",
+  },
 ]
 
 const sections: { type: MenuType; label: string; items: NavItem[] }[] = [
   { type: "overview", label: "Overview", items: overviewItems },
   { type: "be", label: "Basic Education", items: beItems },
+  { type: "student", label: "Student", items: studentItems },
   { type: "eccd", label: "ECCD", items: eccdItems },
   { type: "ie", label: "Inclusive Education", items: ieItems },
   { type: "admin", label: "Administration", items: adminItems },
