@@ -396,7 +396,7 @@ const AppSidebar: React.FC = () => {
       >
         <Link href="/">
             <Image
-              src="/images/logo/rise-logo.webp"
+              src="/images/logo/riselogo.webp"
               alt="RISE Logo"
               width={150}
               height={40}

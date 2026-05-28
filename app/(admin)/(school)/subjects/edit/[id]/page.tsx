@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import Button from "@/components/ui/button/Button"
 
@@ -11,9 +11,10 @@ interface Subject {
   title_myanmar?: string
 }
 
-export default function EditSubject({ params }: { params: { id: string } }) {
+export default function EditSubject() {
   const router = useRouter()
-  const { id } = params
+  const params = useParams()
+  const id = params.id as string
   const [subject, setSubject] = useState<Subject | null>(null)
   const [titleEnglish, setTitleEnglish] = useState("")
   const [titleShort, setTitleShort] = useState("")

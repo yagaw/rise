@@ -38,6 +38,26 @@ To get started with TailAdmin, ensure you have the following prerequisites insta
    yarn dev
    ```
 
+## Tauri Desktop App
+
+This project includes a Tauri v2 desktop shell in `src-tauri`.
+
+Run the desktop app in development:
+
+```bash
+npm run tauri:dev
+```
+
+Build the desktop app:
+
+```bash
+npm run tauri:build
+```
+
+The Tauri shell loads the existing Next.js app from `http://localhost:3000` in development. Production builds create a Next.js standalone server, bundle it as a Tauri resource, start it on `127.0.0.1:3000`, and open the desktop window against that local server.
+
+The current production launcher expects `node` to be available on the target machine. For wider distribution, bundle a Node runtime as a Tauri sidecar.
+
 ## Supabase Setup (Schools)
 
 This project now uses Supabase for school CRUD in the `/schools` pages.

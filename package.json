@@ -3,10 +3,13 @@
   "version": "2.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev ",
-    "build": "next build ",
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",
@@ -45,6 +48,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@svgr/webpack": "^8.1.0",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^20",
     "@types/prismjs": "^1.26.5",
     "@types/react": "^19",

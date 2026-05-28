@@ -96,7 +96,7 @@ const AppHeader: React.FC = () => {
             <Image
               width={154}
               height={32}
-              src="/images/logo/rise-logo.webp"
+              src="/images/logo/riselogo.webp"
               alt="RISE Logo"
             />
           </Link>

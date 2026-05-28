@@ -1,6 +1,6 @@
 "use client"
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import Button from "@/components/ui/button/Button"
 
@@ -11,9 +11,10 @@ interface TeachType {
   title_myanmar?: string
 }
 
-export default function EditTeachType({ params }: { params: { id: string } }) {
+export default function EditTeachType() {
   const router = useRouter()
-  const { id } = params
+  const params = useParams()
+  const id = params.id as string
   const [item, setItem] = useState<TeachType | null>(null)
   const [title, setTitle] = useState("")
   const [titleShort, setTitleShort] = useState("")

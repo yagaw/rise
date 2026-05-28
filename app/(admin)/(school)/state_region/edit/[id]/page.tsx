@@ -1,6 +1,6 @@
 "use client"
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import PageBreadcrumb from "@/components/common/PageBreadCrumb"
 import Button from "@/components/ui/button/Button"
 
@@ -10,13 +10,10 @@ interface StateRegion {
   title_myanmar?: string
 }
 
-export default function EditStateRegion({
-  params,
-}: {
-  params: { id: string }
-}) {
+export default function EditStateRegion() {
   const router = useRouter()
-  const { id } = params
+  const params = useParams()
+  const id = params.id as string
   const [item, setItem] = useState<StateRegion | null>(null)
   const [titleEnglish, setTitleEnglish] = useState("")
   const [titleMyanmar, setTitleMyanmar] = useState("")

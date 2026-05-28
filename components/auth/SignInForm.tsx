@@ -92,7 +92,7 @@ export default function SignInForm() {
         <div className="px-6 pt-8 pb-2 text-center sm:px-8">
           <Link href="/" className="inline-block">
             <Image
-              src="/images/logo/rise-logo.webp"
+              src="/images/logo/riselogo.webp"
               alt="RISE"
               width={120}
               height={120}
